@@ -3242,6 +3242,9 @@ double evaluation(Board &board){
         if(pawn.ispassed){
             eval += 0.5*((8-(pawn.square / 8)) * (8-(pawn.square / 8))) * (1/(piececounter(board.board) + 1));
         }
+        if(pawn.is_weak){
+            eval -= 0.5;
+        }
     }
     for(pawn &pawn : board.blackPawns){
         counter++;
@@ -3265,7 +3268,9 @@ double evaluation(Board &board){
         if(pawn.ispassed){
             eval -= 0.5*((pawn.square / 8)*(pawn.square / 8)) * (1/(piececounter(board.board) + 1));
         }
-
+        if(pawn.is_weak){
+            eval += 0.5;
+        }
     }
     if(piececounter(board.board) > 6){
         if(board.whiteKing[0].square == 63 || board.whiteKing[0].square == 62 || board.whiteKing[0].square == 58 || board.whiteKing[0].square == 57 || board.whiteKing[0].square == 56){
