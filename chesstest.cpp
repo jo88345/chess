@@ -209,7 +209,7 @@ void weak_pawns(Board &board);
 
 
 int main(){
-    std::string FEN = "rnbqkb1r/ppp1pppp/5n2/3p4/3P4/5N2/PPP1PPPP/RNBQKB1R w KQkq - 0 1"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -2712,9 +2712,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
         else{
             domove(board, starts[i], targets[i], '0');
             double tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
-            std::cout << "A" << '\n';
             undomove(board);
-            std::cout << "B" << '\n';
             if(board.turn){
                 if(depth == constant_depth){
                     board.tempmax.push_back(tempeval);
@@ -2931,25 +2929,25 @@ void undomove(Board &board){
                 board.whiteKing[0].square = board.Previous_moves.back().initial_square;
             }            
 
-            if(board.Previous_moves.back().initialsquare == 'K' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == 2){
+            if(rookfinder(board.board, board.whiterook, 59) != -1 && board.Previous_moves.back().initialsquare == 'K' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == 2){
                 board.board[59] = '0';
                 board.board[56] = 'R';
                 board.whiterook[rookfinder(board.board, board.whiterook, 59)].square = 56;
             }
-            if(board.Previous_moves.back().initialsquare == 'K' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == -2){
+            if(rookfinder(board.board, board.whiterook, 61)!= -1 && board.Previous_moves.back().initialsquare == 'K' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == -2){
                 board.board[61] = '0';
                 board.board[63] = 'R';
-                board.whiterook[rookfinder(board.board, board.whiterook, 61)].square = 56;
+                board.whiterook[rookfinder(board.board, board.whiterook, 61)].square = 63;
             }
-            if(board.Previous_moves.back().initialsquare == 'k' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == 2){
+            if(rookfinder(board.board, board.blackrook, 3) != -1 && board.Previous_moves.back().initialsquare == 'k' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == 2){
                 board.board[3] = '0';
                 board.board[0] = 'r';
-                board.blackrook[rookfinder(board.board, board.blackrook, 0)].square = 56;
+                board.blackrook[rookfinder(board.board, board.blackrook, 3)].square = 0;
             }
-            if(board.Previous_moves.back().initialsquare == 'k' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == -2){
+            if(rookfinder(board.board, board.blackrook, 5) != -1 && board.Previous_moves.back().initialsquare == 'k' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == -2){
                 board.board[5] = '0';
                 board.board[7] = 'r';
-                board.blackrook[rookfinder(board.board, board.blackrook, 7)].square = 56;
+                board.blackrook[rookfinder(board.board, board.blackrook, 5)].square = 7;
             }
             if(board.Previous_moves.back().was_en_passent){
                 if(!board.turn){
@@ -3021,6 +3019,7 @@ double evaluation(Board &board){
     else{
         black_expansion(board);         
     }
+    weak_pawns(board);
     double eval = 0;
     for(int i = 0; i < board.previous_boards.size(); i++){ //3-fach Stellungswiederholungs check
         for(int j = 0; j < board.previous_boards.size(); j++){
@@ -3266,6 +3265,7 @@ double evaluation(Board &board){
         if(pawn.ispassed){
             eval -= 0.5*((pawn.square / 8)*(pawn.square / 8)) * (1/(piececounter(board.board) + 1));
         }
+
     }
     if(piececounter(board.board) > 6){
         if(board.whiteKing[0].square == 63 || board.whiteKing[0].square == 62 || board.whiteKing[0].square == 58 || board.whiteKing[0].square == 57 || board.whiteKing[0].square == 56){
