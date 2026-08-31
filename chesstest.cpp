@@ -209,7 +209,7 @@ void weak_pawns(Board &board);
 
 
 int main(){
-    std::string FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "rn3b2/pp2pkpr/2p1pn1p/3q4/3PNB2/3Q4/PPP2PPP/2KR1B1R w - - 1 11"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -3146,7 +3146,7 @@ double evaluation(Board &board){
     }
     for(Bishop &bishop : board.whiteBishop){
         counter++;
-        eval += bishop.value;
+        eval += 3.5;
         eval += 0.1 * onecounter(bishop.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(bishop.legal_destinations[i] == '1'){
@@ -3158,7 +3158,7 @@ double evaluation(Board &board){
     }
     for(Bishop &bishop : board.blackBishop){
         counter++;
-        eval -= bishop.value;
+        eval -= 3.5;
         eval -= 0.1 * onecounter(bishop.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(bishop.legal_destinations[i] == '1'){
@@ -3170,7 +3170,7 @@ double evaluation(Board &board){
     }
     for(Rook &rook : board.whiterook){
         counter++;
-        eval += rook.value;
+        eval += 5;
         eval += 0.1 * onecounter(rook.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(rook.legal_destinations[i] == '1'){
@@ -3182,7 +3182,7 @@ double evaluation(Board &board){
     }
     for(Rook &rook : board.blackrook){
         counter++;
-        eval -= rook.value;
+        eval -= 5;
         eval -= 0.1 * onecounter(rook.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(rook.legal_destinations[i] == '1'){
@@ -3194,7 +3194,7 @@ double evaluation(Board &board){
     }
     for(Queen &queen : board.whiteQueen){
         counter++;
-        eval += queen.value;
+        eval += 9;
         if(piececounter(board.board) < 14){
             eval += 0.05 * onecounter(queen.legal_destinations);
         }
@@ -3208,7 +3208,7 @@ double evaluation(Board &board){
     }
     for(Queen &queen : board.blackQueen){
         counter++;
-        eval -= queen.value;
+        eval -= 9;
         if(piececounter(board.board) < 14){
             eval -= 0.05 * onecounter(queen.legal_destinations);
         }
@@ -3222,7 +3222,7 @@ double evaluation(Board &board){
     }
     for(pawn &pawn : board.whitePawns){
         counter++;
-        eval += pawn.value;
+        eval += 1;
         for(int j = pawn.square / 8; j < 8; j++){
                 if(board.board[j*8 + pawn.square % 8] == 'P' || (pawn.square % 8 != 7 && board.board[j*8 + 1 + pawn.square % 8] == 'P') || (pawn.square % 8 != 0 && board.board[j*8 - 1 + pawn.square % 8] == 'P')){
                     pawn.ispassed = false; 
@@ -3243,12 +3243,12 @@ double evaluation(Board &board){
             eval += 0.5*((8-(pawn.square / 8)) * (8-(pawn.square / 8))) * (1/(piececounter(board.board) + 1));
         }
         if(pawn.is_weak){
-            eval -= 0.5;
+            eval -= 0.2;
         }
     }
     for(pawn &pawn : board.blackPawns){
         counter++;
-        eval -= pawn.value;
+        eval -= 1;
         for(int j = pawn.square / 8; j < 8; j++){
                 if(board.board[j*8 - pawn.square % 8] == 'p' || (pawn.square % 8 != 7 && board.board[j*8 - 1 - pawn.square % 8] == 'p') || (pawn.square % 8 != 0 && board.board[j*8 - 1 - pawn.square % 8] == 'p')){
                     pawn.ispassed = false; 
@@ -3269,7 +3269,7 @@ double evaluation(Board &board){
             eval -= 0.5*((pawn.square / 8)*(pawn.square / 8)) * (1/(piececounter(board.board) + 1));
         }
         if(pawn.is_weak){
-            eval += 0.5;
+            eval += 0.2;
         }
     }
     if(piececounter(board.board) > 6){
