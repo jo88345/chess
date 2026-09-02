@@ -78,6 +78,7 @@ class Previous_move{
     bool black_kingside;
     int en_passent_able_square = -1;
     bool is_forcing;
+    char previous_promotion;
 };
 
 class Board{ //Idee aus ChatGPT
@@ -121,6 +122,7 @@ class Board{ //Idee aus ChatGPT
     int numMove;
     std::vector<Previous_move> Previous_moves;
     bool search;
+    bool printer;
 
     void printboard(std::vector<char> board){
         for(int i = 0; i < 64; i++){
@@ -183,7 +185,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
 int knightfinder(std::vector<char> &board, std::vector<Knight> knights, int square);
 int bishopfinder(std::vector<char> &board, std::vector<Bishop> bishops, int square);
 int queenfinder(std::vector<char> &board, std::vector<Queen> queens, int square);
-void remember_board(Board &board, int startingsquare, int targetsquare);
+void remember_board(Board &board, int startingsquare, int targetsquare, char promotion);
 void undomove(Board &board);
 void legal_white_moves(Board &board);
 void legal_black_moves(Board &board);
@@ -209,7 +211,7 @@ void weak_pawns(Board &board);
 
 
 int main(){
-    std::string FEN = "rn3b2/pp2pkpr/2p1pn1p/3q4/3PNB2/3Q4/PPP2PPP/2KR1B1R w - - 1 11"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -266,10 +268,28 @@ int main(){
         black_expansion(board);         
     }
 
-
-
+    /*
+    std::cout << position_to_FEN(board) << '\n';
+    domove(board, 23, 15, '0');
+    std::cout << position_to_FEN(board) << '\n';
+    domove(board, 8, 16, '0');
+    std::cout << position_to_FEN(board) << '\n';
+    std::cout << board.whiteKnight.size() << '\n';
+    domove(board, 15, 7, 'N');
+    std::cout << position_to_FEN(board) << '\n';
+    std::cout << board.whiteKnight.size() << '\n';
+    undomove(board);
+    std::cout << board.whiteKnight.size() << '\n';
+    std::cout << position_to_FEN(board) << '\n';
+    undomove(board);
+    std::cout << board.whiteKnight.size() << '\n';
+    std::cout << position_to_FEN(board) << '\n';
+    undomove(board);
+    std::cout << position_to_FEN(board) << '\n';
+    */
     
 
+    
     while(board.legal_target_squares.size() != 0 && !breaker){
         if(board.turn){
             cycle(board, 6);
@@ -1752,7 +1772,7 @@ bool check_check_white(Board &board, int startingsquare, int targetsquare){
 }
 
 void domove(Board &board, int startingsquare, int targetsquare, char promotion){
-    remember_board(board, startingsquare, targetsquare);
+    remember_board(board, startingsquare, targetsquare, promotion);
     bool showboard = false;
     board.previous_move = index_to_square(startingsquare) + index_to_square(targetsquare);
     if(board.board[startingsquare] == 'P'){
@@ -1938,6 +1958,7 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             break;
             }
         }
+        board.whitePawns.erase(board.whitePawns.begin() + pawnfinder(board.board, board.whitePawns, targetsquare));
     }
     if(board.board[targetsquare] == 'p' && targetsquare / 8 == 7){
         board.board[targetsquare] = promotion;
@@ -1967,6 +1988,7 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             break;
             }
         }
+        board.blackPawns.erase(board.blackPawns.begin() + pawnfinder(board.board, board.blackPawns, targetsquare));
     }
 
     if(board.turn){
@@ -2710,9 +2732,17 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
         }
         
         else{
+            if(starts[i] == 27 && targets[i] == 18 && depth == constant_depth){
+                board.printer = true;
+            }
+            else if(depth == constant_depth){
+                board.printer = false;
+            }
             domove(board, starts[i], targets[i], '0');
             double tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
+
             undomove(board);
+
             if(board.turn){
                 if(depth == constant_depth){
                     board.tempmax.push_back(tempeval);
@@ -2782,7 +2812,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
     return 0;
 }
 
-void remember_board(Board &board, int startingsquare, int targetsquare){
+void remember_board(Board &board, int startingsquare, int targetsquare, char promotion){
     Previous_move previous_move;
 
     
@@ -2797,14 +2827,15 @@ void remember_board(Board &board, int startingsquare, int targetsquare){
     if(startingsquare != -1){
     previous_move.currentsquare = board.board[targetsquare];
     previous_move.initialsquare = board.board[startingsquare];
-    if((board.board[startingsquare] == 'P' || board.board[startingsquare] == 'p') && board.board[targetsquare] == '0' && (startingsquare - targetsquare) % 8 != 0){
+    if((board.board[startingsquare] == 'P' || board.board[startingsquare] == 'p') && board.board[targetsquare] == '0' && (startingsquare - targetsquare) % 8 != 0 && (abs(startingsquare - targetsquare) == 9 || abs(startingsquare - targetsquare) == 7)){
         previous_move.was_en_passent = true;
     }
     else{
         previous_move.was_en_passent = false;
     }
-    if(((board.board[startingsquare] == 'P' && targetsquare % 8 == 0) || (board.board[startingsquare == 'p'] && targetsquare % 8 == 7))){
+    if(((board.board[startingsquare] == 'P' && targetsquare / 8 == 0) || (board.board[startingsquare] == 'p' && targetsquare / 8 == 7))){
         previous_move.was_promotion = true;
+        previous_move.previous_promotion = promotion;
     }
     else{
         previous_move.was_promotion = false;
@@ -2823,12 +2854,12 @@ void remember_board(Board &board, int startingsquare, int targetsquare){
         previous_move.black_kingside = true;
     }
     for(pawn &Pawn : board.whitePawns){
-        if(Pawn.en_passent_able){
+        if(Pawn.en_passent_able && Pawn.square / 8 == 4){
             previous_move.en_passent_able_square = Pawn.square;
         }
     }
     for(pawn &Pawn : board.blackPawns){
-        if(Pawn.en_passent_able){
+        if(Pawn.en_passent_able && Pawn.square / 8 == 3){
             previous_move.en_passent_able_square = Pawn.square;
         }
     }
@@ -2836,7 +2867,6 @@ void remember_board(Board &board, int startingsquare, int targetsquare){
 }
 
 void undomove(Board &board){
-
     if(board.Previous_moves.size() != 0){
         if(board.Previous_moves.back().initial_square != -1){
             board.board[board.Previous_moves.back().initial_square] = board.Previous_moves.back().initialsquare;
@@ -2927,7 +2957,7 @@ void undomove(Board &board){
             }
             if(board.Previous_moves.back().initialsquare == 'K'){
                 board.whiteKing[0].square = board.Previous_moves.back().initial_square;
-            }            
+            }    
 
             if(rookfinder(board.board, board.whiterook, 59) != -1 && board.Previous_moves.back().initialsquare == 'K' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == 2){
                 board.board[59] = '0';
@@ -2948,6 +2978,12 @@ void undomove(Board &board){
                 board.board[5] = '0';
                 board.board[7] = 'r';
                 board.blackrook[rookfinder(board.board, board.blackrook, 5)].square = 7;
+            }
+            for(pawn &Pawn : board.whitePawns){
+                Pawn.en_passent_able = false;
+            }
+            for(pawn &Pawn : board.blackPawns){
+                Pawn.en_passent_able = false;
             }
             if(board.Previous_moves.back().was_en_passent){
                 if(!board.turn){
@@ -2975,6 +3011,44 @@ void undomove(Board &board){
             }
             else{
                 board.turn = true;
+            }
+        }
+        if(board.Previous_moves.back().was_promotion){
+            switch(board.Previous_moves.back().previous_promotion){
+                case 'Q':
+                board.whiteQueen.erase(board.whiteQueen.begin() + queenfinder(board.board, board.whiteQueen, board.Previous_moves.back().current_square));
+                break;
+                case 'q':
+                board.blackQueen.erase(board.blackQueen.begin() + queenfinder(board.board, board.blackQueen, board.Previous_moves.back().current_square));
+                break;
+                case 'R':
+                board.whiterook.erase(board.whiterook.begin() + rookfinder(board.board, board.whiterook, board.Previous_moves.back().current_square));
+                break;
+                case 'r':
+                board.blackrook.erase(board.blackrook.begin() + rookfinder(board.board, board.blackrook, board.Previous_moves.back().current_square));
+                break;
+                case 'B':
+                board.whiteBishop.erase(board.whiteBishop.begin() + bishopfinder(board.board, board.whiteBishop, board.Previous_moves.back().current_square));
+                break;
+                case 'b':
+                board.blackBishop.erase(board.blackBishop.begin() + bishopfinder(board.board, board.blackBishop, board.Previous_moves.back().current_square));
+                break;
+                case 'N':
+                board.whiteKnight.erase(board.whiteKnight.begin() + knightfinder(board.board, board.whiteKnight, board.Previous_moves.back().current_square));
+                break;
+                case 'n':
+                board.blackKnight.erase(board.blackKnight.begin() + knightfinder(board.board, board.blackKnight, board.Previous_moves.back().current_square));
+                break;
+            }
+            if(board.turn){
+                pawn Pawn;
+                Pawn.square = board.Previous_moves.back().initial_square;
+                board.whitePawns.push_back(Pawn);
+            }
+            if(!board.turn){
+                pawn Pawn;
+                Pawn.square = board.Previous_moves.back().initial_square;
+                board.blackPawns.push_back(Pawn);
             }
         }
         if(board.Previous_moves.back().en_passent_able_square != -1 && pawnfinder(board.board, board.whitePawns, board.Previous_moves.back().en_passent_able_square) != -1){
@@ -3021,7 +3095,8 @@ double evaluation(Board &board){
     }
     weak_pawns(board);
     double eval = 0;
-    for(int i = 0; i < board.previous_boards.size(); i++){ //3-fach Stellungswiederholungs check
+    /*
+    for(int i = 0; i < board.Previous_mo.size(); i++){ //3-fach Stellungswiederholungs check
         for(int j = 0; j < board.previous_boards.size(); j++){
             if(board.previous_boards[j] == board.previous_boards[i] && i != j){
                 rep++;
@@ -3031,6 +3106,7 @@ double evaluation(Board &board){
             }
         }
     }
+    */
     if(board.legal_starting_squares.size() == 0){
         if(iswhiteincheck(board)){
             return 1000;
