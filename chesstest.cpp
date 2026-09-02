@@ -79,6 +79,7 @@ class Previous_move{
     int en_passent_able_square = -1;
     bool is_forcing;
     char previous_promotion;
+    double difference;
 };
 
 class Board{ //Idee aus ChatGPT
@@ -164,10 +165,10 @@ void blackKnightmovement(Board &board);
 void Whitepawnmovement(Board &board);
 void Blackpawnmovement(Board &board);
 void FEN_extra(Board &board, std::string FEN);
-int rookfinder(std::vector<char> &board, std::vector<Rook> rooks, int square);
+int rookfinder(std::vector<Rook> &rooks, int square);
 bool ismove(char x, char y);
 int square_to_index(char file, char row);
-int pawnfinder(std::vector<char> &board, std::vector<pawn> pawns, int square);
+int pawnfinder(std::vector<pawn> &pawns, int square);
 int movecounter(Board &board);
 bool iswhiteincheck(Board &board);
 bool isblackincheck(Board &board);
@@ -182,9 +183,9 @@ void white_expansion(Board &board);
 void black_expansion(Board &board);
 int positionfinder(std::vector<std::string> positions, std::string wanted_position);
 double Tree(Board &board, int depth, int &positions, const int &constant_depth, double alpha, double beta);
-int knightfinder(std::vector<char> &board, std::vector<Knight> knights, int square);
-int bishopfinder(std::vector<char> &board, std::vector<Bishop> bishops, int square);
-int queenfinder(std::vector<char> &board, std::vector<Queen> queens, int square);
+int knightfinder(std::vector<Knight> &knights, int square);
+int bishopfinder(std::vector<Bishop> &bishops, int square);
+int queenfinder(std::vector<Queen> &queens, int square);
 void remember_board(Board &board, int startingsquare, int targetsquare, char promotion);
 void undomove(Board &board);
 void legal_white_moves(Board &board);
@@ -211,7 +212,7 @@ void weak_pawns(Board &board);
 
 
 int main(){
-    std::string FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "r5k1/2p2pb1/pn1p3p/5pq1/1p1Pn1p1/6B1/PPPNQPPP/2KR3R w - - 4 19"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -267,32 +268,15 @@ int main(){
     else{
         black_expansion(board);         
     }
-
-    /*
-    std::cout << position_to_FEN(board) << '\n';
-    domove(board, 23, 15, '0');
-    std::cout << position_to_FEN(board) << '\n';
-    domove(board, 8, 16, '0');
-    std::cout << position_to_FEN(board) << '\n';
-    std::cout << board.whiteKnight.size() << '\n';
-    domove(board, 15, 7, 'N');
-    std::cout << position_to_FEN(board) << '\n';
-    std::cout << board.whiteKnight.size() << '\n';
-    undomove(board);
-    std::cout << board.whiteKnight.size() << '\n';
-    std::cout << position_to_FEN(board) << '\n';
-    undomove(board);
-    std::cout << board.whiteKnight.size() << '\n';
-    std::cout << position_to_FEN(board) << '\n';
-    undomove(board);
-    std::cout << position_to_FEN(board) << '\n';
-    */
+    Tree(board, 2, positions, 2, alpha, beta);
+    std::cout << board.move << '\n';
     
 
+    /*
     
     while(board.legal_target_squares.size() != 0 && !breaker){
         if(board.turn){
-            cycle(board, 6);
+            cycle(board, 4);
             if(board.board[square_to_index(board.move[0], board.move[1])] == 'P' && board.move[3] == '8'){
                 domove(board, square_to_index(board.move[0], board.move[1]), square_to_index(board.move[2], board.move[3]), board.move[4]);
             }
@@ -460,16 +444,16 @@ void piecelist(Board &board){
     bool temp_7 = false;
     bool temp_56 = false;
     bool temp_63 = false;
-    if(rookfinder(board.board, board.blackrook, 0) != -1 &&board.board[0] == 'r' && board.blackrook.size() != 0 && board.blackrook[rookfinder(board.board, board.blackrook, 0)].hasmoved == true){
+    if(rookfinder(board.blackrook, 0) != -1 &&board.board[0] == 'r' && board.blackrook.size() != 0 && board.blackrook[rookfinder(board.blackrook, 0)].hasmoved == true){
         temp_0 = true;
     }
-    if(rookfinder(board.board, board.blackrook, 7) != -1 &&board.board[7] == 'r' && board.blackrook.size() != 0 && board.blackrook[rookfinder(board.board, board.blackrook, 7)].hasmoved == true){
+    if(rookfinder(board.blackrook, 7) != -1 &&board.board[7] == 'r' && board.blackrook.size() != 0 && board.blackrook[rookfinder(board.blackrook, 7)].hasmoved == true){
         temp_7 = true;
     }
-    if(rookfinder(board.board, board.whiterook, 56) != -1 && board.board[56] == 'R' && board.whiterook.size() != 0 && board.whiterook[rookfinder(board.board, board.whiterook, 56)].hasmoved == true){
+    if(rookfinder(board.whiterook, 56) != -1 && board.board[56] == 'R' && board.whiterook.size() != 0 && board.whiterook[rookfinder(board.whiterook, 56)].hasmoved == true){
         temp_56 = true;
     }
-    if(rookfinder(board.board, board.whiterook, 63) != -1 &&board.board[63] == 'R' && board.whiterook.size() != 0 && board.whiterook[rookfinder(board.board, board.whiterook, 63)].hasmoved == true){
+    if(rookfinder(board.whiterook, 63) != -1 &&board.board[63] == 'R' && board.whiterook.size() != 0 && board.whiterook[rookfinder(board.whiterook, 63)].hasmoved == true){
         temp_63 = true;
     } 
     
@@ -521,18 +505,12 @@ void piecelist(Board &board){
             Bishop bishop;
             bishop.color = 0;
             bishop.square = i;
-            if(bishop.square == 2 || bishop.square == 5){
-                bishop.value -= 0.2;
-            }
             board.blackBishop.push_back(bishop);
         }
         if(board.board[i] == 'B'){
             Bishop bishop;
             bishop.color = 1;
             bishop.square = i;
-            if(bishop.square == 61 || bishop.square == 58){
-                bishop.value -= 0.2;
-            }
             board.whiteBishop.push_back(bishop);
         }
         if(board.board[i] == 'r'){
@@ -1143,11 +1121,11 @@ void whiteKingmovement(Board &board){
                 board.legal_white_moves[piece.square + 1] = '1';
                 }
             
-            if(piece.hasmoved == false && board.board[60] == 'K' && board.board[63] == 'R' && rookfinder(board.board, board.whiterook, 63) != -1 && board.whiterook[rookfinder(board.board, board.whiterook, 63)].hasmoved == false && board.legal_black_moves[61] == '0' && board.legal_black_moves[62] == '0' && board.board[62] == '0' && board.board[61] == '0'){
+            if(piece.hasmoved == false && board.board[60] == 'K' && board.board[63] == 'R' && rookfinder(board.whiterook, 63) != -1 && board.whiterook[rookfinder(board.whiterook, 63)].hasmoved == false && board.legal_black_moves[61] == '0' && board.legal_black_moves[62] == '0' && board.board[62] == '0' && board.board[61] == '0'){
                 board.legal_white_moves[62] = '1';
                 piece.legal_moves[62] = '1';
                 }
-            if(piece.hasmoved == false && board.board[60] == 'K' && board.board[56] == 'R' && rookfinder(board.board, board.whiterook, 56) != -1 && board.whiterook[rookfinder(board.board, board.whiterook, 56)].hasmoved == false && board.legal_black_moves[58] == '0' && board.legal_black_moves[59] == '0' && board.board[58] == '0' && board.board[59] == '0' && board.board[57] == '0'){
+            if(piece.hasmoved == false && board.board[60] == 'K' && board.board[56] == 'R' && rookfinder(board.whiterook, 56) != -1 && board.whiterook[rookfinder(board.whiterook, 56)].hasmoved == false && board.legal_black_moves[58] == '0' && board.legal_black_moves[59] == '0' && board.board[58] == '0' && board.board[59] == '0' && board.board[57] == '0'){
                 board.legal_white_moves[58] = '1';
                 piece.legal_moves[58] = '1';
             }
@@ -1198,18 +1176,18 @@ void blackKingmovement(Board &board){
                     board.legal_black_moves[piece.square + 1] = '1';
                 }
             
-                if(piece.hasmoved == false && board.board[4] == 'k' && board.board[0] == 'r' && rookfinder(board.board, board.blackrook, 0) != -1 && board.blackrook[rookfinder(board.board, board.blackrook, 0)].hasmoved == false && board.legal_white_moves[2] == '0' && board.legal_white_moves[3] == '0' && board.board[2] == '0' && board.board[3] == '0' && board.board[1] == '0'){
+                if(piece.hasmoved == false && board.board[4] == 'k' && board.board[0] == 'r' && rookfinder(board.blackrook, 0) != -1 && board.blackrook[rookfinder(board.blackrook, 0)].hasmoved == false && board.legal_white_moves[2] == '0' && board.legal_white_moves[3] == '0' && board.board[2] == '0' && board.board[3] == '0' && board.board[1] == '0'){
                     board.legal_black_moves[2] = '1';
                     piece.legal_moves[2] = '1';
                 }
-                if(piece.hasmoved == false && board.board[4] == 'k' && board.board[7] == 'r' && rookfinder(board.board, board.blackrook, 0) != -1 && board.blackrook[rookfinder(board.board, board.blackrook, 7)].hasmoved == false && board.legal_white_moves[6] == '0' && board.legal_white_moves[5] == '0' && board.board[5] == '0' && board.board[6] == '0'){
+                if(piece.hasmoved == false && board.board[4] == 'k' && board.board[7] == 'r' && rookfinder(board.blackrook, 0) != -1 && board.blackrook[rookfinder(board.blackrook, 7)].hasmoved == false && board.legal_white_moves[6] == '0' && board.legal_white_moves[5] == '0' && board.board[5] == '0' && board.board[6] == '0'){
                     board.legal_black_moves[6] = '1';
                     piece.legal_moves[6] = '1';
                 }
         }
 }
 
-int rookfinder(std::vector<char> &board, std::vector<Rook> rooks, int square){
+int rookfinder(std::vector<Rook> &rooks, int square){
     for(int i = 0; i < rooks.size(); i++){
         if(rooks[i].square == square){
             return i;
@@ -1329,11 +1307,11 @@ void Whitepawnmovement(Board &board){
                 pawn.legal_moves[pawn.square - 7] = '1';
             }
         }
-        if(pawn.square / 8 == 3 && pawn.square % 8 != 7 && board.board[pawn.square + 1] == 'p' && board.blackPawns[pawnfinder(board.board, board.blackPawns, pawn.square + 1)].en_passent_able){
+        if(pawn.square / 8 == 3 && pawn.square % 8 != 7 && board.board[pawn.square + 1] == 'p' && board.blackPawns[pawnfinder(board.blackPawns, pawn.square + 1)].en_passent_able){
             pawn.legal_moves[pawn.square - 7] = '1';
             board.legal_white_moves[pawn.square - 7] = '1';
         }
-        if(pawn.square / 8 == 3 && pawn.square % 8 != 0 && board.board[pawn.square - 1] == 'p' && board.blackPawns[pawnfinder(board.board, board.blackPawns, pawn.square - 1)].en_passent_able){
+        if(pawn.square / 8 == 3 && pawn.square % 8 != 0 && board.board[pawn.square - 1] == 'p' && board.blackPawns[pawnfinder(board.blackPawns, pawn.square - 1)].en_passent_able){
             pawn.legal_moves[pawn.square - 9] = '1';
             board.legal_white_moves[pawn.square - 9] = '1';
         }
@@ -1362,18 +1340,18 @@ void Blackpawnmovement(Board &board){
                 pawn.legal_moves[pawn.square + 9] = '1';
             }
         }
-        if(pawn.square / 8 == 4 && pawn.square % 8 != 0 && board.board[pawn.square - 1] == 'P' && board.whitePawns[pawnfinder(board.board, board.whitePawns, pawn.square - 1)].en_passent_able){
+        if(pawn.square / 8 == 4 && pawn.square % 8 != 0 && board.board[pawn.square - 1] == 'P' && board.whitePawns[pawnfinder(board.whitePawns, pawn.square - 1)].en_passent_able){
             pawn.legal_moves[pawn.square + 7] = '1';
             board.legal_black_moves[pawn.square + 7] = '1';
         }
-        if(pawn.square / 8 == 4 && pawn.square % 8 != 7 && board.board[pawn.square + 1] == 'P' && board.whitePawns[pawnfinder(board.board, board.whitePawns, pawn.square + 1)].en_passent_able){
+        if(pawn.square / 8 == 4 && pawn.square % 8 != 7 && board.board[pawn.square + 1] == 'P' && board.whitePawns[pawnfinder(board.whitePawns, pawn.square + 1)].en_passent_able){
             pawn.legal_moves[pawn.square + 9] = '1';
             board.legal_black_moves[pawn.square + 9] = '1';
         }
     }
 }
 
-int pawnfinder(std::vector<char> &board, std::vector<pawn> pawns, int square){
+int pawnfinder(std::vector<pawn> &pawns, int square){
     for(int i = 0; i < pawns.size(); i++){
         if(pawns[i].square == square){
             return i;
@@ -1437,28 +1415,28 @@ void FEN_extra(Board &board, std::string FEN){
         }
         if(FEN[i] == 'K' && board.board[63] == 'R'){
             board.whiteKing[0].hasmoved = false;
-            board.whiterook[rookfinder(board.board, board.whiterook, 63)].hasmoved = false; 
+            board.whiterook[rookfinder(board.whiterook, 63)].hasmoved = false; 
         }
         if(FEN[i] == 'Q' && board.board[56] == 'R'){
             board.whiteKing[0].hasmoved = false;
-            board.whiterook[rookfinder(board.board, board.whiterook, 56)].hasmoved = false;
+            board.whiterook[rookfinder(board.whiterook, 56)].hasmoved = false;
         }
         if(FEN[i] == 'k' && board.board[7] == 'r'){
             board.blackKing[0].hasmoved = false;
-            board.blackrook[rookfinder(board.board, board.blackrook, 7)].hasmoved = false;
+            board.blackrook[rookfinder(board.blackrook, 7)].hasmoved = false;
         }
         if(FEN[i] == 'q' && board.board[0] == 'r'){
             board.blackKing[0].hasmoved = false;
-            board.blackrook[rookfinder(board.board, board.blackrook, 0)].hasmoved = false;
+            board.blackrook[rookfinder(board.blackrook, 0)].hasmoved = false;
         }
         if(i != FEN.length() - 1 && ismove(FEN[i], FEN[i+1])){ 
             if(FEN[i+1] == '3' && board.board[square_to_index(FEN[i], FEN[i+1]) - 8] == 'P'){
                 board.legal_black_moves[square_to_index(FEN[i], FEN[i+1])] = '1';
-                board.whitePawns[pawnfinder(board.board, board.whitePawns, square_to_index(FEN[i], FEN[i+1]) - 8)].en_passent_able = true;
+                board.whitePawns[pawnfinder(board.whitePawns, square_to_index(FEN[i], FEN[i+1]) - 8)].en_passent_able = true;
             }
             if(FEN[i+1] == '6' && board.board[square_to_index(FEN[i], FEN[i+1]) + 8] == 'p'){
                 board.legal_white_moves[square_to_index(FEN[i], FEN[i+1])] = '1';
-                board.blackPawns[pawnfinder(board.board, board.blackPawns, square_to_index(FEN[i], FEN[i+1]) + 8)].en_passent_able = true;
+                board.blackPawns[pawnfinder(board.blackPawns, square_to_index(FEN[i], FEN[i+1]) + 8)].en_passent_able = true;
             }
         }
     }   
@@ -1477,7 +1455,7 @@ bool ismove(char x, char y){
     return false;
 }
 
-int knightfinder(std::vector<char> &board, std::vector<Knight> knights, int square){
+int knightfinder(std::vector<Knight> &knights, int square){
     for(int i = 0; i < knights.size(); i++){
         if(knights[i].square == square){
             return i;
@@ -1486,7 +1464,7 @@ int knightfinder(std::vector<char> &board, std::vector<Knight> knights, int squa
     return -1;
 }
 
-int bishopfinder(std::vector<char> &board, std::vector<Bishop> bishops, int square){
+int bishopfinder(std::vector<Bishop> &bishops, int square){
     for(int i = 0; i < bishops.size(); i++){
         if(bishops[i].square == square){
             return i;
@@ -1495,7 +1473,7 @@ int bishopfinder(std::vector<char> &board, std::vector<Bishop> bishops, int squa
     return -1;
 }
 
-int queenfinder(std::vector<char> &board, std::vector<Queen> queens, int square){
+int queenfinder(std::vector<Queen> &queens, int square){
     for(int i = 0; i < queens.size(); i++){
         if(queens[i].square == square){
             return i;
@@ -1776,19 +1754,19 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
     bool showboard = false;
     board.previous_move = index_to_square(startingsquare) + index_to_square(targetsquare);
     if(board.board[startingsquare] == 'P'){
-        if(pawnfinder(board.board, board.whitePawns, startingsquare) != -1){
-            board.whitePawns[pawnfinder(board.board, board.whitePawns, startingsquare)].square = targetsquare;
+        if(pawnfinder(board.whitePawns, startingsquare) != -1){
+            board.whitePawns[pawnfinder(board.whitePawns, startingsquare)].square = targetsquare;
         }
         if(startingsquare - 7 == targetsquare && board.board[targetsquare] == '0' && board.board[startingsquare + 1] == 'p'){
             board.board[startingsquare + 1] = '0';
-            if(pawnfinder(board.board, board.blackPawns, startingsquare + 1) != -1){
-                board.blackPawns.erase(board.blackPawns.begin() + pawnfinder(board.board, board.blackPawns, startingsquare + 1));
+            if(pawnfinder(board.blackPawns, startingsquare + 1) != -1){
+                board.blackPawns.erase(board.blackPawns.begin() + pawnfinder(board.blackPawns, startingsquare + 1));
             }
         }
         if(startingsquare - 9 == targetsquare && board.board[targetsquare] == '0' && board.board[startingsquare - 1] == 'p'){
             board.board[startingsquare - 1] = '0';
-            if(pawnfinder(board.board, board.blackPawns, startingsquare - 1) != -1){
-                board.blackPawns.erase(board.blackPawns.begin() + pawnfinder(board.board, board.blackPawns, startingsquare - 1));
+            if(pawnfinder(board.blackPawns, startingsquare - 1) != -1){
+                board.blackPawns.erase(board.blackPawns.begin() + pawnfinder(board.blackPawns, startingsquare - 1));
             }
         }
     }
@@ -1799,19 +1777,19 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
     }
 
     if(board.board[startingsquare] == 'p'){
-        if(pawnfinder(board.board, board.blackPawns, startingsquare) != -1){
-            board.blackPawns[pawnfinder(board.board, board.blackPawns, startingsquare)].square = targetsquare;
+        if(pawnfinder(board.blackPawns, startingsquare) != -1){
+            board.blackPawns[pawnfinder(board.blackPawns, startingsquare)].square = targetsquare;
         }        
         if(startingsquare + 9 == targetsquare && board.board[targetsquare] == '0' && board.board[startingsquare + 1] == 'P'){
             board.board[startingsquare + 1] = '0';
-            if(pawnfinder(board.board, board.whitePawns, startingsquare + 1) != -1){
-                board.whitePawns.erase(board.whitePawns.begin() + pawnfinder(board.board, board.whitePawns, startingsquare + 1));
+            if(pawnfinder(board.whitePawns, startingsquare + 1) != -1){
+                board.whitePawns.erase(board.whitePawns.begin() + pawnfinder(board.whitePawns, startingsquare + 1));
             }
         }
         if(startingsquare + 7 == targetsquare && board.board[targetsquare] == '0' && board.board[startingsquare - 1] == 'P'){
             board.board[startingsquare - 1] = '0';
-            if(pawnfinder(board.board, board.whitePawns, startingsquare - 1) != -1){
-                board.whitePawns.erase(board.whitePawns.begin() + pawnfinder(board.board, board.whitePawns, startingsquare - 1));
+            if(pawnfinder(board.whitePawns, startingsquare - 1) != -1){
+                board.whitePawns.erase(board.whitePawns.begin() + pawnfinder(board.whitePawns, startingsquare - 1));
             }
         } 
     }
@@ -1821,28 +1799,28 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
         }
     } 
 
-    if(board.board[startingsquare] == 'R' && rookfinder(board.board, board.whiterook, startingsquare) != -1){
-        board.whiterook[rookfinder(board.board, board.whiterook, startingsquare)].hasmoved = true;
-        board.whiterook[rookfinder(board.board, board.whiterook, startingsquare)].square = targetsquare;
+    if(board.board[startingsquare] == 'R' && rookfinder(board.whiterook, startingsquare) != -1){
+        board.whiterook[rookfinder(board.whiterook, startingsquare)].hasmoved = true;
+        board.whiterook[rookfinder(board.whiterook, startingsquare)].square = targetsquare;
     
     }
-    if(board.board[startingsquare] == 'r' && rookfinder(board.board, board.blackrook, startingsquare) != -1){
-        board.blackrook[rookfinder(board.board, board.blackrook, startingsquare)].hasmoved = true;
-        board.blackrook[rookfinder(board.board, board.blackrook, startingsquare)].square = targetsquare;
+    if(board.board[startingsquare] == 'r' && rookfinder(board.blackrook, startingsquare) != -1){
+        board.blackrook[rookfinder(board.blackrook, startingsquare)].hasmoved = true;
+        board.blackrook[rookfinder(board.blackrook, startingsquare)].square = targetsquare;
     }
     
     if(board.board[startingsquare] == 'K'){
         board.whiteKing[0].hasmoved = true;
         board.whiteKing[0].square = targetsquare;
-        if(startingsquare - targetsquare == 2 && board.board[56] == 'R' && rookfinder(board.board, board.whiterook, 56) != -1){
-            board.whiterook[rookfinder(board.board, board.whiterook, 56)].hasmoved = true;
-            board.whiterook[rookfinder(board.board, board.whiterook, 56)].square = 59;
+        if(startingsquare - targetsquare == 2 && board.board[56] == 'R' && rookfinder(board.whiterook, 56) != -1){
+            board.whiterook[rookfinder(board.whiterook, 56)].hasmoved = true;
+            board.whiterook[rookfinder(board.whiterook, 56)].square = 59;
             board.board[59] = 'R';
             board.board[56] = '0';
         }
-        if(startingsquare - targetsquare == -2 && board.board[63] == 'R' && rookfinder(board.board, board.whiterook, 63) != -1){
-            board.whiterook[rookfinder(board.board, board.whiterook, 63)].hasmoved = true;
-            board.whiterook[rookfinder(board.board, board.whiterook, 63)].square = 61;
+        if(startingsquare - targetsquare == -2 && board.board[63] == 'R' && rookfinder(board.whiterook, 63) != -1){
+            board.whiterook[rookfinder(board.whiterook, 63)].hasmoved = true;
+            board.whiterook[rookfinder(board.whiterook, 63)].square = 61;
             board.board[61] = 'R';
             board.board[63] = '0';
         }
@@ -1850,84 +1828,84 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
     if(board.board[startingsquare] == 'k'){
         board.blackKing[0].hasmoved = true;
         board.blackKing[0].square = targetsquare;
-        if(startingsquare - targetsquare == 2 && board.board[0] == 'r' && rookfinder(board.board, board.blackrook, 0) != -1){
-            board.blackrook[rookfinder(board.board, board.blackrook, 0)].hasmoved = true;
-            board.blackrook[rookfinder(board.board, board.blackrook, 0)].square = 3;
+        if(startingsquare - targetsquare == 2 && board.board[0] == 'r' && rookfinder(board.blackrook, 0) != -1){
+            board.blackrook[rookfinder(board.blackrook, 0)].hasmoved = true;
+            board.blackrook[rookfinder(board.blackrook, 0)].square = 3;
             board.board[3] = 'r';
             board.board[0] = '0';
         }
-        if(startingsquare - targetsquare == -2 && board.board[7] == 'r' && rookfinder(board.board, board.blackrook, 7) != -1){
-            board.blackrook[rookfinder(board.board, board.blackrook, 7)].hasmoved = true;
-            board.blackrook[rookfinder(board.board, board.blackrook, 7)].square = 5;
+        if(startingsquare - targetsquare == -2 && board.board[7] == 'r' && rookfinder(board.blackrook, 7) != -1){
+            board.blackrook[rookfinder(board.blackrook, 7)].hasmoved = true;
+            board.blackrook[rookfinder(board.blackrook, 7)].square = 5;
             board.board[5] = 'r';
             board.board[7] = '0';
         }
     }
     
 
-    if(board.board[startingsquare] == 'Q' && queenfinder(board.board, board.whiteQueen, startingsquare) != -1){
-        board.whiteQueen[queenfinder(board.board, board.whiteQueen, startingsquare)].square = targetsquare;
+    if(board.board[startingsquare] == 'Q' && queenfinder(board.whiteQueen, startingsquare) != -1){
+        board.whiteQueen[queenfinder(board.whiteQueen, startingsquare)].square = targetsquare;
     }
-    if(board.board[startingsquare] == 'q' && queenfinder(board.board, board.blackQueen, startingsquare) != -1){
-        board.blackQueen[queenfinder(board.board, board.blackQueen, startingsquare)].square = targetsquare;
-    }
-
-    if(board.board[startingsquare] == 'B' && bishopfinder(board.board, board.whiteBishop, startingsquare) != -1){
-        board.whiteBishop[bishopfinder(board.board, board.whiteBishop, startingsquare)].square = targetsquare;
-    }
-    if(board.board[startingsquare] == 'b' && bishopfinder(board.board, board.blackBishop, startingsquare) != -1){
-        board.blackBishop[bishopfinder(board.board, board.blackBishop, startingsquare)].square = targetsquare;
+    if(board.board[startingsquare] == 'q' && queenfinder(board.blackQueen, startingsquare) != -1){
+        board.blackQueen[queenfinder(board.blackQueen, startingsquare)].square = targetsquare;
     }
 
-    if(board.board[startingsquare] == 'N' && knightfinder(board.board, board.whiteKnight, startingsquare) != -1){
-        board.whiteKnight[knightfinder(board.board, board.whiteKnight, startingsquare)].square = targetsquare;
+    if(board.board[startingsquare] == 'B' && bishopfinder(board.whiteBishop, startingsquare) != -1){
+        board.whiteBishop[bishopfinder(board.whiteBishop, startingsquare)].square = targetsquare;
+    }
+    if(board.board[startingsquare] == 'b' && bishopfinder(board.blackBishop, startingsquare) != -1){
+        board.blackBishop[bishopfinder(board.blackBishop, startingsquare)].square = targetsquare;
+    }
+
+    if(board.board[startingsquare] == 'N' && knightfinder(board.whiteKnight, startingsquare) != -1){
+        board.whiteKnight[knightfinder(board.whiteKnight, startingsquare)].square = targetsquare;
 
     }
-    if(board.board[startingsquare] == 'n' && knightfinder(board.board, board.blackKnight, startingsquare) != -1){
-        board.blackKnight[knightfinder(board.board, board.blackKnight, startingsquare)].square = targetsquare;
+    if(board.board[startingsquare] == 'n' && knightfinder(board.blackKnight, startingsquare) != -1){
+        board.blackKnight[knightfinder(board.blackKnight, startingsquare)].square = targetsquare;
     }
 
-    if(board.board[targetsquare] == 'P' && pawnfinder(board.board, board.whitePawns, targetsquare) != -1){
-        board.whitePawns.erase(board.whitePawns.begin() + pawnfinder(board.board, board.whitePawns, targetsquare));
+    if(board.board[targetsquare] == 'P' && pawnfinder(board.whitePawns, targetsquare) != -1){
+        board.whitePawns.erase(board.whitePawns.begin() + pawnfinder(board.whitePawns, targetsquare));
     }
-    if(board.board[targetsquare] == 'p' && pawnfinder(board.board, board.blackPawns, targetsquare) != -1){
-        board.blackPawns.erase(board.blackPawns.begin() + pawnfinder(board.board, board.blackPawns, targetsquare));
+    if(board.board[targetsquare] == 'p' && pawnfinder(board.blackPawns, targetsquare) != -1){
+        board.blackPawns.erase(board.blackPawns.begin() + pawnfinder(board.blackPawns, targetsquare));
     }
-    if(board.board[targetsquare] == 'N' && knightfinder(board.board, board.whiteKnight, targetsquare) != -1){
-        board.whiteKnight.erase(board.whiteKnight.begin() + knightfinder(board.board, board.whiteKnight, targetsquare));
+    if(board.board[targetsquare] == 'N' && knightfinder(board.whiteKnight, targetsquare) != -1){
+        board.whiteKnight.erase(board.whiteKnight.begin() + knightfinder(board.whiteKnight, targetsquare));
     }
-    if(board.board[targetsquare] == 'n' && knightfinder(board.board, board.blackKnight, targetsquare) != -1){
-        board.blackKnight.erase(board.blackKnight.begin() + knightfinder(board.board, board.blackKnight, targetsquare));
+    if(board.board[targetsquare] == 'n' && knightfinder(board.blackKnight, targetsquare) != -1){
+        board.blackKnight.erase(board.blackKnight.begin() + knightfinder(board.blackKnight, targetsquare));
     }
-    if(board.board[targetsquare] == 'B' && bishopfinder(board.board, board.whiteBishop, targetsquare) != -1){
-        board.whiteBishop.erase(board.whiteBishop.begin() + bishopfinder(board.board, board.whiteBishop, targetsquare));
+    if(board.board[targetsquare] == 'B' && bishopfinder(board.whiteBishop, targetsquare) != -1){
+        board.whiteBishop.erase(board.whiteBishop.begin() + bishopfinder(board.whiteBishop, targetsquare));
     }
-    if(board.board[targetsquare] == 'b' && bishopfinder(board.board, board.blackBishop, targetsquare) != -1){
-        board.blackBishop.erase(board.blackBishop.begin() + bishopfinder(board.board, board.blackBishop, targetsquare));
+    if(board.board[targetsquare] == 'b' && bishopfinder(board.blackBishop, targetsquare) != -1){
+        board.blackBishop.erase(board.blackBishop.begin() + bishopfinder(board.blackBishop, targetsquare));
     }
-    if(board.board[targetsquare] == 'R' && rookfinder(board.board, board.whiterook, targetsquare) != -1){
-        board.whiterook.erase(board.whiterook.begin() + rookfinder(board.board, board.whiterook, targetsquare));
+    if(board.board[targetsquare] == 'R' && rookfinder(board.whiterook, targetsquare) != -1){
+        board.whiterook.erase(board.whiterook.begin() + rookfinder(board.whiterook, targetsquare));
     }
-    if(board.board[targetsquare] == 'r' && rookfinder(board.board, board.blackrook, targetsquare) != -1){
-        board.blackrook.erase(board.blackrook.begin() + rookfinder(board.board, board.blackrook, targetsquare));
+    if(board.board[targetsquare] == 'r' && rookfinder(board.blackrook, targetsquare) != -1){
+        board.blackrook.erase(board.blackrook.begin() + rookfinder(board.blackrook, targetsquare));
     }
-    if(board.board[targetsquare] == 'Q' && queenfinder(board.board, board.whiteQueen, targetsquare) != -1){
-        board.whiteQueen.erase(board.whiteQueen.begin() + queenfinder(board.board, board.whiteQueen, targetsquare));
+    if(board.board[targetsquare] == 'Q' && queenfinder(board.whiteQueen, targetsquare) != -1){
+        board.whiteQueen.erase(board.whiteQueen.begin() + queenfinder(board.whiteQueen, targetsquare));
     }
-    if(board.board[targetsquare] == 'q' && queenfinder(board.board, board.blackQueen, targetsquare) != -1){
-        board.blackQueen.erase(board.blackQueen.begin() + queenfinder(board.board, board.blackQueen, targetsquare));
+    if(board.board[targetsquare] == 'q' && queenfinder(board.blackQueen, targetsquare) != -1){
+        board.blackQueen.erase(board.blackQueen.begin() + queenfinder(board.blackQueen, targetsquare));
     }
 
     board.board[targetsquare] = board.board[startingsquare];
     board.board[startingsquare] = '0';  
     
 
-    if(pawnfinder(board.board, board.whitePawns, targetsquare) != -1 && board.board[targetsquare] == 'P' && startingsquare - targetsquare == 16 && ((board.board[targetsquare + 1] == 'p' && targetsquare % 8 != 7  && !check_check_black(board, targetsquare + 1, targetsquare + 8)) || (board.board[targetsquare - 1] == 'p' && targetsquare % 8 != 0 && !check_check_black(board, targetsquare - 1, targetsquare + 8)))){
-        board.whitePawns[pawnfinder(board.board, board.whitePawns, targetsquare)].en_passent_able = true;
+    if(pawnfinder(board.whitePawns, targetsquare) != -1 && board.board[targetsquare] == 'P' && startingsquare - targetsquare == 16 && ((board.board[targetsquare + 1] == 'p' && targetsquare % 8 != 7  && !check_check_black(board, targetsquare + 1, targetsquare + 8)) || (board.board[targetsquare - 1] == 'p' && targetsquare % 8 != 0 && !check_check_black(board, targetsquare - 1, targetsquare + 8)))){
+        board.whitePawns[pawnfinder(board.whitePawns, targetsquare)].en_passent_able = true;
     }
 
-    if(pawnfinder(board.board, board.blackPawns, targetsquare) != -1 && board.board[targetsquare] == 'p' && startingsquare - targetsquare == -16 && ((board.board[targetsquare + 1] == 'P' && targetsquare % 8 != 7 && !check_check_white(board, targetsquare + 1, targetsquare - 8)) || (board.board[targetsquare - 1] == 'P' && targetsquare % 8 != 0 && !check_check_white(board, targetsquare - 1, targetsquare - 8)))){
-        board.blackPawns[pawnfinder(board.board, board.blackPawns, targetsquare)].en_passent_able = true;
+    if(pawnfinder(board.blackPawns, targetsquare) != -1 && board.board[targetsquare] == 'p' && startingsquare - targetsquare == -16 && ((board.board[targetsquare + 1] == 'P' && targetsquare % 8 != 7 && !check_check_white(board, targetsquare + 1, targetsquare - 8)) || (board.board[targetsquare - 1] == 'P' && targetsquare % 8 != 0 && !check_check_white(board, targetsquare - 1, targetsquare - 8)))){
+        board.blackPawns[pawnfinder(board.blackPawns, targetsquare)].en_passent_able = true;
     }
     
     if(board.board[targetsquare] == 'P' && targetsquare / 8 == 0){
@@ -1958,7 +1936,7 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             break;
             }
         }
-        board.whitePawns.erase(board.whitePawns.begin() + pawnfinder(board.board, board.whitePawns, targetsquare));
+        board.whitePawns.erase(board.whitePawns.begin() + pawnfinder(board.whitePawns, targetsquare));
     }
     if(board.board[targetsquare] == 'p' && targetsquare / 8 == 7){
         board.board[targetsquare] = promotion;
@@ -1988,7 +1966,7 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             break;
             }
         }
-        board.blackPawns.erase(board.blackPawns.begin() + pawnfinder(board.board, board.blackPawns, targetsquare));
+        board.blackPawns.erase(board.blackPawns.begin() + pawnfinder(board.blackPawns, targetsquare));
     }
 
     if(board.turn){
@@ -2216,19 +2194,19 @@ std::string position_to_FEN(Board &board){
     else{
         FEN += " b ";
     }
-    if(rookfinder(board.board, board.whiterook, 63) != -1 && board.whiteKing[0].square == 60 && board.whiteKing[0].hasmoved == false && board.whiterook[rookfinder(board.board, board.whiterook, 63)].hasmoved == false){
+    if(rookfinder(board.whiterook, 63) != -1 && board.whiteKing[0].square == 60 && board.whiteKing[0].hasmoved == false && board.whiterook[rookfinder(board.whiterook, 63)].hasmoved == false){
         FEN += "K";
         Kingcounter++;
     }
-    if(rookfinder(board.board, board.whiterook, 56) != -1 && board.whiteKing[0].square == 60 && board.whiteKing[0].hasmoved == false && board.whiterook[rookfinder(board.board, board.whiterook, 56)].hasmoved == false){
+    if(rookfinder(board.whiterook, 56) != -1 && board.whiteKing[0].square == 60 && board.whiteKing[0].hasmoved == false && board.whiterook[rookfinder(board.whiterook, 56)].hasmoved == false){
         FEN += "Q";
         Kingcounter++;
     }
-    if(rookfinder(board.board, board.blackrook, 7) != -1 && board.blackKing[0].square == 4 && board.blackKing[0].hasmoved == false && board.blackrook[rookfinder(board.board, board.blackrook, 7)].hasmoved == false){
+    if(rookfinder(board.blackrook, 7) != -1 && board.blackKing[0].square == 4 && board.blackKing[0].hasmoved == false && board.blackrook[rookfinder(board.blackrook, 7)].hasmoved == false){
         FEN += "k";
         Kingcounter++;
     }
-    if(rookfinder(board.board, board.blackrook, 0) != -1 && board.blackKing[0].square == 4 && board.blackKing[0].hasmoved == false && board.blackrook[rookfinder(board.board, board.blackrook, 0)].hasmoved == false){
+    if(rookfinder(board.blackrook, 0) != -1 && board.blackKing[0].square == 4 && board.blackKing[0].hasmoved == false && board.blackrook[rookfinder(board.blackrook, 0)].hasmoved == false){
         FEN += "q";
         Kingcounter++;
     }
@@ -2477,13 +2455,11 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
 
     double maxEval;
     double minEval;
-    if(depth == 0){
+    
+    if(depth <= 0 && (board.Previous_moves.size() == 0 || !board.Previous_moves.back().is_forcing || (depth <= -3 && board.Previous_moves.back().difference <= 0))){
         positions++;
-        /*
-        while(board.Previous_moves.back().is_forcing){
-            Tree(board, depth + 1, positions, constant_depth, alpha, beta);
-        }
-        */
+        
+        
         return evaluation(board);
     }
     int temppositions = positions;
@@ -2815,12 +2791,19 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
 void remember_board(Board &board, int startingsquare, int targetsquare, char promotion){
     Previous_move previous_move;
 
-    
-    
-    if(targetsquare != -1 && ((board.turn  && (isblackpiece(board.board, targetsquare) || check_check_black(board, startingsquare, targetsquare))) || (!board.turn && (iswhitepiece(board.board, targetsquare) || check_check_white(board, startingsquare, targetsquare))))){
+    if((board.turn  && (isblackpiece(board.board, targetsquare) || check_check_black(board, startingsquare, targetsquare) || (board.board[startingsquare] == 'P' && targetsquare / 8 == 7))) || (!board.turn && (iswhitepiece(board.board, targetsquare) || check_check_white(board, startingsquare, targetsquare) || (board.board[startingsquare] == 'p' && targetsquare / 8 == 0)))){
         previous_move.is_forcing = true;
     }
-    
+    else{
+        previous_move.is_forcing = false;
+    }
+    if(board.board[targetsquare] != '0'){
+        previous_move.difference = difference(board, startingsquare, targetsquare);
+    }
+    else{
+        previous_move.difference = 0.01; // damit es bei Schachs weitermacht
+    }
+
 
     previous_move.current_square = targetsquare;
     previous_move.initial_square = startingsquare;
@@ -2841,16 +2824,16 @@ void remember_board(Board &board, int startingsquare, int targetsquare, char pro
         previous_move.was_promotion = false;
     }
     }
-    if(!board.whiteKing[0].hasmoved && (rookfinder(board.board, board.whiterook, 56) != -1 && !board.whiterook[rookfinder(board.board, board.whiterook, 56)].hasmoved)){
+    if(!board.whiteKing[0].hasmoved && (rookfinder(board.whiterook, 56) != -1 && !board.whiterook[rookfinder(board.whiterook, 56)].hasmoved)){
         previous_move.white_queenside = true;
     }
-    if(!board.whiteKing[0].hasmoved && (rookfinder(board.board, board.whiterook, 63) != -1 && !board.whiterook[rookfinder(board.board, board.whiterook, 63)].hasmoved)){
+    if(!board.whiteKing[0].hasmoved && (rookfinder(board.whiterook, 63) != -1 && !board.whiterook[rookfinder(board.whiterook, 63)].hasmoved)){
         previous_move.white_kingside = true;
     }
-    if(!board.blackKing[0].hasmoved && (rookfinder(board.board, board.blackrook, 0) != -1 && !board.blackrook[rookfinder(board.board, board.blackrook, 0)].hasmoved)){
+    if(!board.blackKing[0].hasmoved && (rookfinder(board.blackrook, 0) != -1 && !board.blackrook[rookfinder(board.blackrook, 0)].hasmoved)){
         previous_move.black_queenside = true;
     }
-    if(!board.blackKing[0].hasmoved && (rookfinder(board.board, board.blackrook, 7) != -1 && !board.blackrook[rookfinder(board.board, board.blackrook, 7)].hasmoved)){
+    if(!board.blackKing[0].hasmoved && (rookfinder(board.blackrook, 7) != -1 && !board.blackrook[rookfinder(board.blackrook, 7)].hasmoved)){
         previous_move.black_kingside = true;
     }
     for(pawn &Pawn : board.whitePawns){
@@ -2922,35 +2905,35 @@ void undomove(Board &board){
                 board.whiteQueen.push_back(queen);
             }
 
-            if(board.Previous_moves.back().initialsquare == 'p' && pawnfinder(board.board, board.blackPawns, board.Previous_moves.back().current_square) != -1){
-                board.blackPawns[pawnfinder(board.board, board.blackPawns, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+            if(board.Previous_moves.back().initialsquare == 'p' && pawnfinder(board.blackPawns, board.Previous_moves.back().current_square) != -1){
+                board.blackPawns[pawnfinder(board.blackPawns, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
             }
-            if(board.Previous_moves.back().initialsquare == 'P' && pawnfinder(board.board, board.whitePawns, board.Previous_moves.back().current_square) != -1){
-                board.whitePawns[pawnfinder(board.board, board.whitePawns, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+            if(board.Previous_moves.back().initialsquare == 'P' && pawnfinder(board.whitePawns, board.Previous_moves.back().current_square) != -1){
+                board.whitePawns[pawnfinder(board.whitePawns, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
             }
-            if(board.Previous_moves.back().initialsquare == 'n' && knightfinder(board.board, board.blackKnight, board.Previous_moves.back().current_square) != -1){
-                board.blackKnight[knightfinder(board.board, board.blackKnight, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+            if(board.Previous_moves.back().initialsquare == 'n' && knightfinder(board.blackKnight, board.Previous_moves.back().current_square) != -1){
+                board.blackKnight[knightfinder(board.blackKnight, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
             }
-            if(board.Previous_moves.back().initialsquare == 'N' && knightfinder(board.board, board.whiteKnight, board.Previous_moves.back().current_square) != -1){
-                board.whiteKnight[knightfinder(board.board, board.whiteKnight, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+            if(board.Previous_moves.back().initialsquare == 'N' && knightfinder(board.whiteKnight, board.Previous_moves.back().current_square) != -1){
+                board.whiteKnight[knightfinder(board.whiteKnight, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
             }
-            if(board.Previous_moves.back().initialsquare == 'b' && bishopfinder(board.board, board.blackBishop, board.Previous_moves.back().current_square) != -1){
-                board.blackBishop[bishopfinder(board.board, board.blackBishop, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+            if(board.Previous_moves.back().initialsquare == 'b' && bishopfinder(board.blackBishop, board.Previous_moves.back().current_square) != -1){
+                board.blackBishop[bishopfinder(board.blackBishop, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
             }
-            if(board.Previous_moves.back().initialsquare == 'B' && bishopfinder(board.board, board.whiteBishop, board.Previous_moves.back().current_square) != -1){
-                board.whiteBishop[bishopfinder(board.board, board.whiteBishop, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+            if(board.Previous_moves.back().initialsquare == 'B' && bishopfinder(board.whiteBishop, board.Previous_moves.back().current_square) != -1){
+                board.whiteBishop[bishopfinder(board.whiteBishop, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
             }
-            if(board.Previous_moves.back().initialsquare == 'r' && rookfinder(board.board, board.blackrook, board.Previous_moves.back().current_square) != -1){
-                board.blackrook[rookfinder(board.board, board.blackrook, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+            if(board.Previous_moves.back().initialsquare == 'r' && rookfinder(board.blackrook, board.Previous_moves.back().current_square) != -1){
+                board.blackrook[rookfinder(board.blackrook, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
             }
-            if(board.Previous_moves.back().initialsquare == 'R' && rookfinder(board.board, board.whiterook, board.Previous_moves.back().current_square) != -1){
-                board.whiterook[rookfinder(board.board, board.whiterook, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+            if(board.Previous_moves.back().initialsquare == 'R' && rookfinder(board.whiterook, board.Previous_moves.back().current_square) != -1){
+                board.whiterook[rookfinder(board.whiterook, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
             }
-            if(board.Previous_moves.back().initialsquare == 'q' && queenfinder(board.board, board.blackQueen, board.Previous_moves.back().current_square) != -1){
-                board.blackQueen[queenfinder(board.board, board.blackQueen, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+            if(board.Previous_moves.back().initialsquare == 'q' && queenfinder(board.blackQueen, board.Previous_moves.back().current_square) != -1){
+                board.blackQueen[queenfinder(board.blackQueen, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
             }
-            if(board.Previous_moves.back().initialsquare == 'Q' && queenfinder(board.board, board.whiteQueen, board.Previous_moves.back().current_square) != -1){
-                board.whiteQueen[queenfinder(board.board, board.whiteQueen, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+            if(board.Previous_moves.back().initialsquare == 'Q' && queenfinder(board.whiteQueen, board.Previous_moves.back().current_square) != -1){
+                board.whiteQueen[queenfinder(board.whiteQueen, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
             }
             if(board.Previous_moves.back().initialsquare == 'k'){
                 board.blackKing[0].square = board.Previous_moves.back().initial_square;
@@ -2959,25 +2942,25 @@ void undomove(Board &board){
                 board.whiteKing[0].square = board.Previous_moves.back().initial_square;
             }    
 
-            if(rookfinder(board.board, board.whiterook, 59) != -1 && board.Previous_moves.back().initialsquare == 'K' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == 2){
+            if(rookfinder(board.whiterook, 59) != -1 && board.Previous_moves.back().initialsquare == 'K' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == 2){
                 board.board[59] = '0';
                 board.board[56] = 'R';
-                board.whiterook[rookfinder(board.board, board.whiterook, 59)].square = 56;
+                board.whiterook[rookfinder(board.whiterook, 59)].square = 56;
             }
-            if(rookfinder(board.board, board.whiterook, 61)!= -1 && board.Previous_moves.back().initialsquare == 'K' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == -2){
+            if(rookfinder(board.whiterook, 61)!= -1 && board.Previous_moves.back().initialsquare == 'K' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == -2){
                 board.board[61] = '0';
                 board.board[63] = 'R';
-                board.whiterook[rookfinder(board.board, board.whiterook, 61)].square = 63;
+                board.whiterook[rookfinder(board.whiterook, 61)].square = 63;
             }
-            if(rookfinder(board.board, board.blackrook, 3) != -1 && board.Previous_moves.back().initialsquare == 'k' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == 2){
+            if(rookfinder(board.blackrook, 3) != -1 && board.Previous_moves.back().initialsquare == 'k' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == 2){
                 board.board[3] = '0';
                 board.board[0] = 'r';
-                board.blackrook[rookfinder(board.board, board.blackrook, 3)].square = 0;
+                board.blackrook[rookfinder(board.blackrook, 3)].square = 0;
             }
-            if(rookfinder(board.board, board.blackrook, 5) != -1 && board.Previous_moves.back().initialsquare == 'k' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == -2){
+            if(rookfinder(board.blackrook, 5) != -1 && board.Previous_moves.back().initialsquare == 'k' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == -2){
                 board.board[5] = '0';
                 board.board[7] = 'r';
-                board.blackrook[rookfinder(board.board, board.blackrook, 5)].square = 7;
+                board.blackrook[rookfinder(board.blackrook, 5)].square = 7;
             }
             for(pawn &Pawn : board.whitePawns){
                 Pawn.en_passent_able = false;
@@ -2991,8 +2974,8 @@ void undomove(Board &board){
                     pawn.square = board.Previous_moves.back().initial_square - (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8);
                     board.blackPawns.push_back(pawn);
                     board.board[board.Previous_moves.back().initial_square - (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8)] = 'p';
-                    if(pawnfinder(board.board, board.blackPawns, board.Previous_moves.back().initial_square - (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8)) != -1){
-                        board.blackPawns[pawnfinder(board.board, board.blackPawns, board.Previous_moves.back().initial_square - (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8))].en_passent_able = true;
+                    if(pawnfinder(board.blackPawns, board.Previous_moves.back().initial_square - (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8)) != -1){
+                        board.blackPawns[pawnfinder(board.blackPawns, board.Previous_moves.back().initial_square - (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8))].en_passent_able = true;
                     }
                 }
                 if(board.turn){
@@ -3000,8 +2983,8 @@ void undomove(Board &board){
                     pawn.square = board.Previous_moves.back().initial_square + (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8);
                     board.whitePawns.push_back(pawn);
                     board.board[board.Previous_moves.back().initial_square + (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8)] = 'P';
-                    if(pawnfinder(board.board, board.whitePawns, board.Previous_moves.back().initial_square + (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8)) != -1){
-                        board.whitePawns[pawnfinder(board.board, board.whitePawns, board.Previous_moves.back().initial_square + (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8))].en_passent_able = true;
+                    if(pawnfinder(board.whitePawns, board.Previous_moves.back().initial_square + (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8)) != -1){
+                        board.whitePawns[pawnfinder(board.whitePawns, board.Previous_moves.back().initial_square + (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8))].en_passent_able = true;
                     }
                 }
             }
@@ -3016,28 +2999,28 @@ void undomove(Board &board){
         if(board.Previous_moves.back().was_promotion){
             switch(board.Previous_moves.back().previous_promotion){
                 case 'Q':
-                board.whiteQueen.erase(board.whiteQueen.begin() + queenfinder(board.board, board.whiteQueen, board.Previous_moves.back().current_square));
+                board.whiteQueen.erase(board.whiteQueen.begin() + queenfinder(board.whiteQueen, board.Previous_moves.back().current_square));
                 break;
                 case 'q':
-                board.blackQueen.erase(board.blackQueen.begin() + queenfinder(board.board, board.blackQueen, board.Previous_moves.back().current_square));
+                board.blackQueen.erase(board.blackQueen.begin() + queenfinder(board.blackQueen, board.Previous_moves.back().current_square));
                 break;
                 case 'R':
-                board.whiterook.erase(board.whiterook.begin() + rookfinder(board.board, board.whiterook, board.Previous_moves.back().current_square));
+                board.whiterook.erase(board.whiterook.begin() + rookfinder(board.whiterook, board.Previous_moves.back().current_square));
                 break;
                 case 'r':
-                board.blackrook.erase(board.blackrook.begin() + rookfinder(board.board, board.blackrook, board.Previous_moves.back().current_square));
+                board.blackrook.erase(board.blackrook.begin() + rookfinder(board.blackrook, board.Previous_moves.back().current_square));
                 break;
                 case 'B':
-                board.whiteBishop.erase(board.whiteBishop.begin() + bishopfinder(board.board, board.whiteBishop, board.Previous_moves.back().current_square));
+                board.whiteBishop.erase(board.whiteBishop.begin() + bishopfinder(board.whiteBishop, board.Previous_moves.back().current_square));
                 break;
                 case 'b':
-                board.blackBishop.erase(board.blackBishop.begin() + bishopfinder(board.board, board.blackBishop, board.Previous_moves.back().current_square));
+                board.blackBishop.erase(board.blackBishop.begin() + bishopfinder(board.blackBishop, board.Previous_moves.back().current_square));
                 break;
                 case 'N':
-                board.whiteKnight.erase(board.whiteKnight.begin() + knightfinder(board.board, board.whiteKnight, board.Previous_moves.back().current_square));
+                board.whiteKnight.erase(board.whiteKnight.begin() + knightfinder(board.whiteKnight, board.Previous_moves.back().current_square));
                 break;
                 case 'n':
-                board.blackKnight.erase(board.blackKnight.begin() + knightfinder(board.board, board.blackKnight, board.Previous_moves.back().current_square));
+                board.blackKnight.erase(board.blackKnight.begin() + knightfinder(board.blackKnight, board.Previous_moves.back().current_square));
                 break;
             }
             if(board.turn){
@@ -3051,27 +3034,27 @@ void undomove(Board &board){
                 board.blackPawns.push_back(Pawn);
             }
         }
-        if(board.Previous_moves.back().en_passent_able_square != -1 && pawnfinder(board.board, board.whitePawns, board.Previous_moves.back().en_passent_able_square) != -1){
-            board.whitePawns[pawnfinder(board.board, board.whitePawns, board.Previous_moves.back().en_passent_able_square)].en_passent_able = true;
+        if(board.Previous_moves.back().en_passent_able_square != -1 && pawnfinder(board.whitePawns, board.Previous_moves.back().en_passent_able_square) != -1){
+            board.whitePawns[pawnfinder(board.whitePawns, board.Previous_moves.back().en_passent_able_square)].en_passent_able = true;
         }
-        if(board.Previous_moves.back().en_passent_able_square != -1 && pawnfinder(board.board, board.blackPawns, board.Previous_moves.back().en_passent_able_square) != -1){
-            board.blackPawns[pawnfinder(board.board, board.blackPawns, board.Previous_moves.back().en_passent_able_square)].en_passent_able = true;
+        if(board.Previous_moves.back().en_passent_able_square != -1 && pawnfinder(board.blackPawns, board.Previous_moves.back().en_passent_able_square) != -1){
+            board.blackPawns[pawnfinder(board.blackPawns, board.Previous_moves.back().en_passent_able_square)].en_passent_able = true;
         }
-        if(board.Previous_moves.back().black_kingside && rookfinder(board.board, board.blackrook, 7) != -1){
+        if(board.Previous_moves.back().black_kingside && rookfinder(board.blackrook, 7) != -1){
             board.blackKing[0].hasmoved = false;
-            board.blackrook[rookfinder(board.board, board.blackrook, 7)].hasmoved = false;
+            board.blackrook[rookfinder(board.blackrook, 7)].hasmoved = false;
         }
-        if(board.Previous_moves.back().black_queenside && rookfinder(board.board, board.blackrook, 0) != -1){
+        if(board.Previous_moves.back().black_queenside && rookfinder(board.blackrook, 0) != -1){
             board.blackKing[0].hasmoved = false;
-            board.blackrook[rookfinder(board.board, board.blackrook, 0)].hasmoved = false;
+            board.blackrook[rookfinder(board.blackrook, 0)].hasmoved = false;
         }
-        if(board.Previous_moves.back().white_kingside && rookfinder(board.board, board.whiterook, 63) != -1){
+        if(board.Previous_moves.back().white_kingside && rookfinder(board.whiterook, 63) != -1){
             board.whiteKing[0].hasmoved = false;
-            board.whiterook[rookfinder(board.board, board.whiterook, 63)].hasmoved = false;
+            board.whiterook[rookfinder(board.whiterook, 63)].hasmoved = false;
         }
-        if(board.Previous_moves.back().white_queenside && rookfinder(board.board, board.whiterook, 56) != -1){
+        if(board.Previous_moves.back().white_queenside && rookfinder(board.whiterook, 56) != -1){
             board.whiteKing[0].hasmoved = false;
-            board.whiterook[rookfinder(board.board, board.whiterook, 56)].hasmoved = false;
+            board.whiterook[rookfinder(board.whiterook, 56)].hasmoved = false;
         }
         board.Previous_moves.pop_back();
     }
@@ -3164,7 +3147,7 @@ double evaluation(Board &board){
                 }
             }
         }
-        if((knight.square % 8 != 0 && knight.square > 16 && board.board[knight.square - 7] != 'p' && (board.board[knight.square - 15] != 'p' || (pawnfinder(board.board, board.blackPawns, knight.square - 15) != -1 && board.blackPawns[pawnfinder(board.board, board.blackPawns, knight.square - 15)].legal_moves[knight.square - 7] == '0'))) && (knight.square % 8 != 7 && knight.square > 16 && board.board[knight.square - 9] != 'p' && (board.board[knight.square - 17] != 'p' || (pawnfinder(board.board, board.blackPawns, knight.square - 17) != -1 &&board.blackPawns[pawnfinder(board.board, board.blackPawns, knight.square - 17)].legal_moves[knight.square - 9] == '0'))) && (knight.square / 8 == 5 && (knight.square != 39 && (board.board[knight.square - 23] != 'p' || (pawnfinder(board.board, board.blackPawns, knight.square - 23) != -1 && board.blackPawns[pawnfinder(board.board, board.blackPawns, knight.square - 23)].legal_moves[knight.square - 7] == '0'))) && (knight.square != 32 && (board.board[knight.square] - 25 != 'p' || (pawnfinder(board.board, board.blackPawns, knight.square - 25) != -1 &&board.blackPawns[pawnfinder(board.board, board.blackPawns, knight.square - 25)].legal_moves[knight.square - 9] == '0')))) && knight.square / 8 < 5){
+        if((knight.square % 8 != 0 && knight.square > 16 && board.board[knight.square - 7] != 'p' && (board.board[knight.square - 15] != 'p' || (pawnfinder(board.blackPawns, knight.square - 15) != -1 && board.blackPawns[pawnfinder(board.blackPawns, knight.square - 15)].legal_moves[knight.square - 7] == '0'))) && (knight.square % 8 != 7 && knight.square > 16 && board.board[knight.square - 9] != 'p' && (board.board[knight.square - 17] != 'p' || (pawnfinder(board.blackPawns, knight.square - 17) != -1 &&board.blackPawns[pawnfinder(board.blackPawns, knight.square - 17)].legal_moves[knight.square - 9] == '0'))) && (knight.square / 8 == 5 && (knight.square != 39 && (board.board[knight.square - 23] != 'p' || (pawnfinder(board.blackPawns, knight.square - 23) != -1 && board.blackPawns[pawnfinder(board.blackPawns, knight.square - 23)].legal_moves[knight.square - 7] == '0'))) && (knight.square != 32 && (board.board[knight.square] - 25 != 'p' || (pawnfinder(board.blackPawns, knight.square - 25) != -1 &&board.blackPawns[pawnfinder(board.blackPawns, knight.square - 25)].legal_moves[knight.square - 9] == '0')))) && knight.square / 8 < 5){
             eval += 0.5;
         }
     }
@@ -3216,14 +3199,17 @@ double evaluation(Board &board){
                 }
             }
         }
-        if((knight.square % 8 != 0 && knight.square < 48 && board.board[knight.square + 7] != 'P' && (board.board[knight.square + 15] != 'P' || (pawnfinder(board.board, board.whitePawns, knight.square + 15) != -1 && board.whitePawns[pawnfinder(board.board, board.whitePawns, knight.square + 15)].legal_moves[knight.square + 7] == '0'))) && (knight.square % 8 != 7 && knight.square < 47 && board.board[knight.square + 9] != 'P' && (board.board[knight.square + 17] != 'P' || (pawnfinder(board.board, board.whitePawns, knight.square + 17) != -1 &&board.whitePawns[pawnfinder(board.board, board.whitePawns, knight.square + 17)].legal_moves[knight.square + 9] == '0'))) && (knight.square / 8 == 4 && (((knight.square != 24 && (board.board[knight.square + 23] != 'P' || (pawnfinder(board.board, board.whitePawns, knight.square + 23) != -1 && board.whitePawns[pawnfinder(board.board, board.whitePawns, knight.square + 23)].legal_moves[knight.square + 7] == '0'))) && (knight.square != 31 && (board.board[knight.square] + 25 != 'P' || (pawnfinder(board.board, board.whitePawns, knight.square + 25) != -1 && board.whitePawns[pawnfinder(board.board, board.whitePawns, knight.square + 25)].legal_moves[knight.square + 9]) == '0'))))) && knight.square / 8 > 2){ //Bedingung für Vorpfostenfeld. Ist tendenzeill ungenau, da es auch Felder als Vorpfostenfelder gelten lässt, wenn sie nur vorübergehend sicher sind für den Springer.
+        if((knight.square % 8 != 0 && knight.square < 48 && board.board[knight.square + 7] != 'P' && (board.board[knight.square + 15] != 'P' || (pawnfinder(board.whitePawns, knight.square + 15) != -1 && board.whitePawns[pawnfinder(board.whitePawns, knight.square + 15)].legal_moves[knight.square + 7] == '0'))) && (knight.square % 8 != 7 && knight.square < 47 && board.board[knight.square + 9] != 'P' && (board.board[knight.square + 17] != 'P' || (pawnfinder(board.whitePawns, knight.square + 17) != -1 &&board.whitePawns[pawnfinder(board.whitePawns, knight.square + 17)].legal_moves[knight.square + 9] == '0'))) && (knight.square / 8 == 4 && (((knight.square != 24 && (board.board[knight.square + 23] != 'P' || (pawnfinder(board.whitePawns, knight.square + 23) != -1 && board.whitePawns[pawnfinder(board.whitePawns, knight.square + 23)].legal_moves[knight.square + 7] == '0'))) && (knight.square != 31 && (board.board[knight.square] + 25 != 'P' || (pawnfinder(board.whitePawns, knight.square + 25) != -1 && board.whitePawns[pawnfinder(board.whitePawns, knight.square + 25)].legal_moves[knight.square + 9]) == '0'))))) && knight.square / 8 > 2){ //Bedingung für Vorpfostenfeld. Ist tendenzeill ungenau, da es auch Felder als Vorpfostenfelder gelten lässt, wenn sie nur vorübergehend sicher sind für den Springer.
             eval -= 0.5;
         }
     }
     for(Bishop &bishop : board.whiteBishop){
         counter++;
         eval += 3.5;
-        eval += 0.1 * onecounter(bishop.legal_destinations);
+        if(bishop.square == 58 || bishop.square == 61){
+            eval -= 0.2;
+        }
+        eval += 0.05 * onecounter(bishop.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(bishop.legal_destinations[i] == '1'){
                 if(!isblackincheck(board) && check_check_black(board, bishop.square, i)){
@@ -3235,7 +3221,10 @@ double evaluation(Board &board){
     for(Bishop &bishop : board.blackBishop){
         counter++;
         eval -= 3.5;
-        eval -= 0.1 * onecounter(bishop.legal_destinations);
+        if(bishop.square == 2 || bishop.square == 5){
+            eval += 0.2;
+        }
+        eval -= 0.05 * onecounter(bishop.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(bishop.legal_destinations[i] == '1'){
                 if(!iswhiteincheck(board) && check_check_white(board, bishop.square, i)){
@@ -3271,7 +3260,7 @@ double evaluation(Board &board){
     for(Queen &queen : board.whiteQueen){
         counter++;
         eval += 9;
-        if(piececounter(board.board) < 14){
+        if(piececounter(board.board) < 12){
             eval += 0.05 * onecounter(queen.legal_destinations);
         }
         for(int i = 0; i < 64; i++){
@@ -3285,7 +3274,7 @@ double evaluation(Board &board){
     for(Queen &queen : board.blackQueen){
         counter++;
         eval -= 9;
-        if(piececounter(board.board) < 14){
+        if(piececounter(board.board) < 12){
             eval -= 0.05 * onecounter(queen.legal_destinations);
         }
         for(int i = 0; i < 64; i++){
@@ -3466,66 +3455,66 @@ double difference(Board &board, int startingsquare, int targetsquare){
     double difference = 0;
     switch(board.board[startingsquare]){
         case 'P':
-        difference -= board.whitePawns[pawnfinder(board.board, board.whitePawns, startingsquare)].value;
+        difference -= 1;
         break;
         case 'p':
-        difference -= board.blackPawns[pawnfinder(board.board, board.blackPawns, startingsquare)].value;
+        difference -= 1;
         break;
         case 'N':
-        difference -= board.whiteKnight[knightfinder(board.board, board.whiteKnight, startingsquare)].value;
+        difference -= 3;
         break;
         case 'n':
-        difference -= board.blackKnight[knightfinder(board.board, board.blackKnight, startingsquare)].value;
+        difference -= 3;
         break;
         case 'B':
-        difference -= board.whiteBishop[bishopfinder(board.board, board.whiteBishop, startingsquare)].value;
+        difference -= 3.5;
         break;
         case 'b':
-        difference -= board.blackBishop[bishopfinder(board.board, board.blackBishop, startingsquare)].value;
+        difference -= 3.5;
         break;
         case 'R':
-        difference -= board.whiterook[rookfinder(board.board, board.whiterook, startingsquare)].value;
+        difference -= 5;
         break;
         case 'r':
-        difference -= board.blackrook[rookfinder(board.board, board.blackrook, startingsquare)].value;
+        difference -= 5;
         break;
         case 'Q':
-        difference -= board.whiteQueen[queenfinder(board.board, board.whiteQueen, startingsquare)].value;
+        difference -= 9;
         break;
         case 'q':
-        difference -= board.blackQueen[queenfinder(board.board, board.blackQueen, startingsquare)].value;
+        difference -= 9;
         break;
     }
     switch(board.board[targetsquare]){
         case 'P':
-        difference += board.whitePawns[pawnfinder(board.board, board.whitePawns, targetsquare)].value;
+        difference += 1;
         break;
         case 'p':
-        difference += board.blackPawns[pawnfinder(board.board, board.blackPawns, targetsquare)].value;
+        difference += 1;
         break;
         case 'N':
-        difference += board.whiteKnight[knightfinder(board.board, board.whiteKnight, targetsquare)].value;
+        difference += 3;
         break;
         case 'n':
-        difference += board.blackKnight[knightfinder(board.board, board.blackKnight, targetsquare)].value;
+        difference += 3;
         break;
         case 'B':
-        difference += board.whiteBishop[bishopfinder(board.board, board.whiteBishop, targetsquare)].value;
+        difference += 3.5;
         break;
         case 'b':
-        difference += board.blackBishop[bishopfinder(board.board, board.blackBishop, targetsquare)].value;
+        difference += 3.5;
         break;
         case 'R':
-        difference += board.whiterook[rookfinder(board.board, board.whiterook, targetsquare)].value;
+        difference += 5;
         break;
         case 'r':
-        difference += board.blackrook[rookfinder(board.board, board.blackrook, targetsquare)].value;
+        difference += 5;
         break;
         case 'Q':
-        difference += board.whiteQueen[queenfinder(board.board, board.whiteQueen, targetsquare)].value;
+        difference += 9;
         break;
         case 'q':
-        difference += board.blackQueen[queenfinder(board.board, board.blackQueen, targetsquare)].value;
+        difference += 9;
         break;
     }
     return difference;
