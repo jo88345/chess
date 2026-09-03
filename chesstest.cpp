@@ -80,6 +80,7 @@ class Previous_move{
     bool is_forcing;
     char previous_promotion;
     double difference;
+    bool was_check;
 };
 
 class Board{ //Idee aus ChatGPT
@@ -212,7 +213,7 @@ void weak_pawns(Board &board);
 
 
 int main(){
-    std::string FEN = "r5k1/2p2pb1/pn1p3p/5pq1/1p1Pn1p1/6B1/PPPNQPPP/2KR3R w - - 4 19"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "r1bk2nr/p1p1ppbp/1pP5/1B4B1/8/5p2/PPP2PPP/RN2K2R w KQ - 0 9"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -268,9 +269,9 @@ int main(){
     else{
         black_expansion(board);         
     }
-    Tree(board, 2, positions, 2, alpha, beta);
+
+    Tree(board, 4, positions, 4 , alpha, beta);
     std::cout << board.move << '\n';
-    
 
     /*
     
@@ -2456,10 +2457,8 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
     double maxEval;
     double minEval;
     
-    if(depth <= 0 && (board.Previous_moves.size() == 0 || !board.Previous_moves.back().is_forcing || (depth <= -3 && board.Previous_moves.back().difference <= 0))){
+    if(depth <= 0 && ((board.Previous_moves.size() > 0 && !board.Previous_moves.back().is_forcing) || (depth <= -4 && !board.Previous_moves[board.Previous_moves.size() - 2].was_check && board.Previous_moves.back().difference < 0))){ 
         positions++;
-        
-        
         return evaluation(board);
     }
     int temppositions = positions;
@@ -2485,9 +2484,15 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
         
 
         if(iswhiteincheck(board)){
+            if(depth < 0){
+                return -999.99;
+            }
             return -1000;
         }
         else if(isblackincheck(board)){
+            if(depth < 0){
+                return 999.99;
+            }
             return 1000;
         }
         return 0;
@@ -2797,13 +2802,21 @@ void remember_board(Board &board, int startingsquare, int targetsquare, char pro
     else{
         previous_move.is_forcing = false;
     }
+    if(board.turn && check_check_white(board, startingsquare, targetsquare)){
+        previous_move.was_check = true;
+    }
+    else if(!board.turn && check_check_black(board, startingsquare, targetsquare)){
+        previous_move.was_check = true;
+    }
+    if(board.Previous_moves.size() > 0 && board.Previous_moves.back().was_check){
+        previous_move.is_forcing = true;
+    }
     if(board.board[targetsquare] != '0'){
         previous_move.difference = difference(board, startingsquare, targetsquare);
     }
     else{
-        previous_move.difference = 0.01; // damit es bei Schachs weitermacht
+        previous_move.difference = -0.01;
     }
-
 
     previous_move.current_square = targetsquare;
     previous_move.initial_square = startingsquare;
@@ -3079,9 +3092,9 @@ double evaluation(Board &board){
     weak_pawns(board);
     double eval = 0;
     /*
-    for(int i = 0; i < board.Previous_mo.size(); i++){ //3-fach Stellungswiederholungs check
-        for(int j = 0; j < board.previous_boards.size(); j++){
-            if(board.previous_boards[j] == board.previous_boards[i] && i != j){
+    for(int i = 0; i < board.Previous_moves.back().pre_pos.size(); i++){ //3-fach Stellungswiederholungs check
+        for(int j = 0; j < board.Previous_moves.back().pre_pos.size(); j++){
+            if(board.Previous_moves.back().pre_pos[j] == board.Previous_moves.back().pre_pos[i] && i != j){
                 rep++;
                 if(rep == 3){
                     return 0;
@@ -3090,6 +3103,7 @@ double evaluation(Board &board){
         }
     }
     */
+    
     if(board.legal_starting_squares.size() == 0){
         if(iswhiteincheck(board)){
             return 1000;
