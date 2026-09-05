@@ -117,7 +117,7 @@ class Board{ //Idee aus ChatGPT
     std::string move;
     std::vector<std::string> candidates;
     bool breaker = false;
-    bool abort = false;
+    bool was_check;
     bool isset = false;
     int saved_amount;
     bool punish = false;
@@ -125,6 +125,8 @@ class Board{ //Idee aus ChatGPT
     std::vector<Previous_move> Previous_moves;
     bool search;
     bool printer;
+    std::vector<char> interpose_help_white;
+    std::vector<char> interpose_help_black;
 
     void printboard(std::vector<char> board){
         for(int i = 0; i < 64; i++){
@@ -195,6 +197,12 @@ int piececounter (std::vector<char> &board);
 int distance(int start, int target);
 int distance(int start, int target);
 void weak_pawns(Board &board);
+bool is_mate_threatened(Board &board, bool bywhite);
+bool can_interpose(Board &board, int startingsquare, int targetsquare, bool color);
+bool only_king(Board &board, int square, bool color);
+
+
+
 
 
 
@@ -207,7 +215,7 @@ void weak_pawns(Board &board);
 
 
 int main(){
-    std::string FEN = "8/2p3k1/3p1p2/3R2p1/2B1r3/2P5/P1P3PP/6K1 w - - 3 28"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -264,6 +272,10 @@ int main(){
         black_expansion(board);         
     }
 
+    Tree(board, 4, positions, 4, alpha, beta);
+    std::cout << board.move << '\n';
+
+    /*
 
     while(board.legal_target_squares.size() != 0 && !breaker){
         if(board.turn){
@@ -564,6 +576,7 @@ void whiteQueenmovement(Board &board){
             if(piece.square-(i*9) >= 0 && (piece.square-(i-1)*9) % 8 != 0 && (board.board[piece.square - 9*i] == '0' || isblackpiece(board.board, piece.square - 9*i))&& !iswhitepiece(board.board, piece.square - 9*i)){
                 piece.legal_moves[piece.square - i*9] = '1';
                 board.legal_white_moves[piece.square - i*9] = '1';
+                board.interpose_help_white[piece.square - i*9] = '1';
                 if(isblackpiece(board.board, piece.square - 9*i)){
                    breaker = true;
                 }
@@ -578,6 +591,7 @@ void whiteQueenmovement(Board &board){
             if(piece.square-(i*8) >= 0  && (board.board[piece.square - 8*i] == '0' || isblackpiece(board.board, piece.square - 8*i))&& !iswhitepiece(board.board, piece.square - 8*i)){
                 piece.legal_moves[piece.square - i*8] = '1';
                 board.legal_white_moves[piece.square - i*8] = '1';
+                board.interpose_help_white[piece.square - i*8] = '1';
                 if(isblackpiece(board.board, piece.square - 8*i)){
                     breaker = true;
                 }
@@ -591,6 +605,7 @@ void whiteQueenmovement(Board &board){
             if(piece.square-(i*7) >= 0 && (piece.square-(i-1)*7) % 8 != 7 && (board.board[piece.square - 7*i] == '0' || isblackpiece(board.board, piece.square - 7*i))&& !iswhitepiece(board.board, piece.square - 7*i)){
                 piece.legal_moves[piece.square - i*7] = '1';
                 board.legal_white_moves[piece.square - i*7] = '1';
+                board.interpose_help_white[piece.square - i*7] = '1';
                 if(isblackpiece(board.board, piece.square - 7*i)){
                     breaker = true;
                 }
@@ -604,6 +619,7 @@ void whiteQueenmovement(Board &board){
             if((piece.square-(i-1)) % 8 != 0 && (board.board[piece.square - i] == '0' || isblackpiece(board.board, piece.square - i))&& !iswhitepiece(board.board, piece.square - i)){
                 piece.legal_moves[piece.square - i] = '1';
                 board.legal_white_moves[piece.square - i] = '1';
+                board.interpose_help_white[piece.square - i] = '1';
                 if(isblackpiece(board.board, piece.square - i)){
                     breaker = true;
                 }
@@ -617,6 +633,7 @@ void whiteQueenmovement(Board &board){
             if(piece.square+(i*7) <= 63 && (piece.square+(i-1)*7) % 8 != 0 && (board.board[piece.square + 7*i] == '0' || isblackpiece(board.board, piece.square + 7*i))&& !iswhitepiece(board.board, piece.square + 7*i)){
                 piece.legal_moves[piece.square + i*7] = '1';
                 board.legal_white_moves[piece.square + i*7] = '1';
+                board.interpose_help_white[piece.square + i*7] = '1';
                 if(isblackpiece(board.board, piece.square + 7*i)){
                     breaker = true;
                 }
@@ -630,6 +647,7 @@ void whiteQueenmovement(Board &board){
             if(piece.square+(i*8) <= 63 && (board.board[piece.square + 8*i] == '0' || isblackpiece(board.board, piece.square + 8*i))&& !iswhitepiece(board.board, piece.square + 8*i)){
                 piece.legal_moves[piece.square + i*8] = '1';
                 board.legal_white_moves[piece.square + i*8] = '1';
+                board.interpose_help_white[piece.square + i*7] = '1';
                 if(isblackpiece(board.board, piece.square + 8*i)){
                     breaker = true;
                 }
@@ -656,6 +674,7 @@ void whiteQueenmovement(Board &board){
                 if((piece.square+(i-1)) % 8 != 7 && (board.board[piece.square + i] == '0' || isblackpiece(board.board, piece.square + i))&& !iswhitepiece(board.board, piece.square + i)){
                     piece.legal_moves[piece.square + i] = '1';
                     board.legal_white_moves[piece.square + i] = '1';
+                    board.interpose_help_white[piece.square + i] = '1';
                     if(isblackpiece(board.board, piece.square + i)){
                         breaker = true;
                     }
@@ -677,6 +696,7 @@ void blackQueenmovement(Board&board){
             if(piece.square-(i*9) >= 0 && (piece.square-(i-1)*9) % 8 != 0 && (board.board[piece.square - 9*i] == '0' || iswhitepiece(board.board, piece.square - 9*i))&& !isblackpiece(board.board, piece.square - 9*i)){
                 piece.legal_moves[piece.square - i*9] = '1';
                 board.legal_black_moves[piece.square - i*9] = '1';
+                board.interpose_help_black[piece.square - i*9] = '1';
                 if(iswhitepiece(board.board, piece.square - 9*i)){
                     breaker = true;
                 }
@@ -690,6 +710,7 @@ void blackQueenmovement(Board&board){
             if(piece.square-(i*8) >= 0  && (board.board[piece.square - 8*i] == '0' || iswhitepiece(board.board, piece.square - 8*i))&& !isblackpiece(board.board, piece.square - 8*i)){
                 piece.legal_moves[piece.square - i*8] = '1';
                 board.legal_black_moves[piece.square - i*8] = '1';
+                board.interpose_help_black[piece.square - i*8] = '1';
                 if(iswhitepiece(board.board, piece.square - 8*i)){
                     breaker = true;
                 }
@@ -703,6 +724,7 @@ void blackQueenmovement(Board&board){
             if(piece.square-(i*7) >= 0 && (piece.square-(i-1)*7) % 8 != 7 && (board.board[piece.square - 7*i] == '0' || iswhitepiece(board.board, piece.square - 7*i))&& !isblackpiece(board.board, piece.square - 7*i)){
                 piece.legal_moves[piece.square - i*7] = '1';
                 board.legal_black_moves[piece.square - i*7] = '1';
+                board.interpose_help_black[piece.square - i*7] = '1';
                 if(iswhitepiece(board.board, piece.square - 7*i)){
                     breaker = true;
                 }
@@ -716,6 +738,7 @@ void blackQueenmovement(Board&board){
             if((piece.square-(i-1)) % 8 != 0 && (board.board[piece.square - i] == '0' || iswhitepiece(board.board, piece.square - i))&& !isblackpiece(board.board, piece.square - i)){
                 piece.legal_moves[piece.square - i] = '1';
                 board.legal_black_moves[piece.square - i] = '1';
+                board.interpose_help_black[piece.square - i] = '1';
                 if(iswhitepiece(board.board, piece.square - i)){
                         breaker = true;
                     }
@@ -729,6 +752,7 @@ void blackQueenmovement(Board&board){
             if(piece.square+(i*7) <= 63 && (piece.square+(i-1)*7) % 8 != 0 && (board.board[piece.square + 7*i] == '0' || iswhitepiece(board.board, piece.square + 7*i))&& !isblackpiece(board.board, piece.square + 7*i)){
                 piece.legal_moves[piece.square + i*7] = '1';
                 board.legal_black_moves[piece.square + i*7] = '1';
+                board.interpose_help_black[piece.square + i*7] = '1';
                 if(iswhitepiece(board.board, piece.square + 7*i)){
                     breaker = true;
                 }
@@ -742,6 +766,7 @@ void blackQueenmovement(Board&board){
             if(piece.square+(i*8) <= 63 && (board.board[piece.square + 8*i] == '0' || iswhitepiece(board.board, piece.square + 8*i))&& !isblackpiece(board.board, piece.square + 8*i)){
                 piece.legal_moves[piece.square + i*8] = '1';
                 board.legal_black_moves[piece.square + i*8] = '1';
+                board.interpose_help_black[piece.square + i*8] = '1';
                 if(iswhitepiece(board.board, piece.square + 8*i)){
                     breaker = true;
                 }
@@ -755,6 +780,7 @@ void blackQueenmovement(Board&board){
             if(piece.square+(i*9) <= 63 && (piece.square+(i-1)*9) % 8 != 7 && (board.board[piece.square + 9*i] == '0' || iswhitepiece(board.board, piece.square + 9*i))&& !isblackpiece(board.board, piece.square + 9*i)){
                 piece.legal_moves[piece.square + i*9] = '1';
                 board.legal_black_moves[piece.square + i*9] = '1';
+                board.interpose_help_black[piece.square + i*9] = '1';
                 if(iswhitepiece(board.board, piece.square + 9*i)){
                     breaker = true;
                 }
@@ -768,6 +794,7 @@ void blackQueenmovement(Board&board){
             if((piece.square+(i-1)) % 8 != 7 && (board.board[piece.square + i] == '0' || iswhitepiece(board.board, piece.square + i))&& !isblackpiece(board.board, piece.square + i)){
                 piece.legal_moves[piece.square + i] = '1';
                 board.legal_black_moves[piece.square + i] = '1';
+                board.interpose_help_black[piece.square + i] = '1';
                 if(iswhitepiece(board.board, piece.square + i)){
                     breaker = true;
                 }
@@ -836,6 +863,7 @@ void whiteRookmovement(Board &board){
             if(piece.square-(i*8) >= 0  && (board.board[piece.square - 8*i] == '0' || isblackpiece(board.board, piece.square - 8*i))&& !iswhitepiece(board.board, piece.square - 8*i)){
                 piece.legal_moves[piece.square - i*8] = '1';
                 board.legal_white_moves[piece.square - i*8] = '1';
+                board.interpose_help_white[piece.square - i*8] = '1';
                 if(isblackpiece(board.board, piece.square - 8*i)){
                     breaker = true;
                 }
@@ -849,6 +877,7 @@ void whiteRookmovement(Board &board){
             if((piece.square-(i-1)) % 8 != 0 && (board.board[piece.square - i] == '0' || isblackpiece(board.board, piece.square - i))&& !iswhitepiece(board.board, piece.square - i)){
                 piece.legal_moves[piece.square - i] = '1';
                 board.legal_white_moves[piece.square - i] = '1';
+                board.interpose_help_white[piece.square - i] = '1';
                 if(isblackpiece(board.board, piece.square - i)){
                     breaker = true;
                 }
@@ -862,6 +891,7 @@ void whiteRookmovement(Board &board){
             if(piece.square+(i*8) <= 63 && (board.board[piece.square + 8*i] == '0' || isblackpiece(board.board, piece.square + 8*i))&& !iswhitepiece(board.board, piece.square + 8*i)){
                 piece.legal_moves[piece.square + i*8] = '1';
                 board.legal_white_moves[piece.square + i*8] = '1';
+                board.interpose_help_white[piece.square + i*8] = '1';
                 if(isblackpiece(board.board, piece.square + 8*i)){
                     breaker = true;
                 }
@@ -875,6 +905,7 @@ void whiteRookmovement(Board &board){
                 if((piece.square+(i-1)) % 8 != 7 && (board.board[piece.square + i] == '0' || isblackpiece(board.board, piece.square + i))&& !iswhitepiece(board.board, piece.square + i)){
                     piece.legal_moves[piece.square + i] = '1';
                     board.legal_white_moves[piece.square + i] = '1';
+                    board.interpose_help_white[piece.square + i] = '1';
                     if(isblackpiece(board.board, piece.square + i)){
                         breaker = true;
                     }
@@ -896,6 +927,7 @@ void blackRookmovement(Board &board){
             if(piece.square-(i*8) >= 0  && (board.board[piece.square - 8*i] == '0' || iswhitepiece(board.board, piece.square - 8*i))&& !isblackpiece(board.board, piece.square - 8*i)){
                 piece.legal_moves[piece.square - i*8] = '1';
                 board.legal_black_moves[piece.square - i*8] = '1';
+                board.interpose_help_black[piece.square - i*8] = '1';
                 if(iswhitepiece(board.board, piece.square - 8*i)){
                     breaker = true;
                 }
@@ -909,6 +941,7 @@ void blackRookmovement(Board &board){
             if((piece.square-(i-1)) % 8 != 0 && (board.board[piece.square - i] == '0' || iswhitepiece(board.board, piece.square - i))&& !isblackpiece(board.board, piece.square - i)){
                 piece.legal_moves[piece.square - i] = '1';
                 board.legal_black_moves[piece.square - i] = '1';
+                board.interpose_help_black[piece.square - i] = '1';
                 if(iswhitepiece(board.board, piece.square - i)){
                         breaker = true;
                     }
@@ -922,6 +955,7 @@ void blackRookmovement(Board &board){
             if(piece.square+(i*8) <= 63 && (board.board[piece.square + 8*i] == '0' || iswhitepiece(board.board, piece.square + 8*i))&& !isblackpiece(board.board, piece.square + 8*i)){
                 piece.legal_moves[piece.square + i*8] = '1';
                 board.legal_black_moves[piece.square + i*8] = '1';
+                board.interpose_help_black[piece.square + i*8] = '1';
                 if(iswhitepiece(board.board, piece.square + 8*i)){
                     breaker = true;
                 }
@@ -935,6 +969,7 @@ void blackRookmovement(Board &board){
             if((piece.square+(i-1)) % 8 != 7 && (board.board[piece.square + i] == '0' || iswhitepiece(board.board, piece.square + i))&& !isblackpiece(board.board, piece.square + i)){
                 piece.legal_moves[piece.square + i] = '1';
                 board.legal_black_moves[piece.square + i] = '1';
+                board.interpose_help_black[piece.square + i] = '1';
                 if(iswhitepiece(board.board, piece.square + i)){
                     breaker = true;
                 }
@@ -955,6 +990,7 @@ void whiteBishopmovement(Board &board){
             if(piece.square-(i*9) >= 0 && (piece.square-(i-1)*9) % 8 != 0 && (board.board[piece.square - 9*i] == '0' || isblackpiece(board.board, piece.square - 9*i))&& !iswhitepiece(board.board, piece.square - 9*i)){
                 piece.legal_moves[piece.square - i*9] = '1';
                 board.legal_white_moves[piece.square - i*9] = '1';
+                board.interpose_help_white[piece.square - i*9] = '1';
                 if(isblackpiece(board.board, piece.square - 9*i)){
                     breaker = true;
                 }
@@ -970,6 +1006,7 @@ void whiteBishopmovement(Board &board){
             if(piece.square-(i*7) >= 0 && (piece.square-(i-1)*7) % 8 != 7 && (board.board[piece.square - 7*i] == '0' || isblackpiece(board.board, piece.square - 7*i))&& !iswhitepiece(board.board, piece.square - 7*i)){
                 piece.legal_moves[piece.square - i*7] = '1';
                 board.legal_white_moves[piece.square - i*7] = '1';
+                board.interpose_help_white[piece.square - i*7] = '1';
                 if(isblackpiece(board.board, piece.square - 7*i)){
                     breaker = true;
                 }
@@ -983,6 +1020,7 @@ void whiteBishopmovement(Board &board){
             if(piece.square+(i*7) <= 63 && (piece.square+(i-1)*7) % 8 != 0 && (board.board[piece.square + 7*i] == '0' || isblackpiece(board.board, piece.square + 7*i))&& !iswhitepiece(board.board, piece.square + 7*i)){
                 piece.legal_moves[piece.square + i*7] = '1';
                 board.legal_white_moves[piece.square + i*7] = '1';
+                board.interpose_help_white[piece.square + i*7] = '1';
                 if(isblackpiece(board.board, piece.square + 7*i)){
                     breaker = true;
                 }
@@ -996,6 +1034,7 @@ void whiteBishopmovement(Board &board){
             if(piece.square+(i*9) <= 63 && (piece.square+(i-1)*9) % 8 != 7 && (board.board[piece.square + 9*i] == '0' || isblackpiece(board.board, piece.square + 9*i))&& !iswhitepiece(board.board, piece.square + 9*i)){
                 piece.legal_moves[piece.square + i*9] = '1';
                 board.legal_white_moves[piece.square + i*9] = '1';
+                board.interpose_help_white[piece.square + i*9] = '1';
                 if(isblackpiece(board.board, piece.square + 9*i)){
                     breaker = true;
                 }
@@ -1018,6 +1057,7 @@ void blackBishopmovement(Board &board){
             if(piece.square-(i*9) >= 0 && (piece.square-(i-1)*9) % 8 != 0 && (board.board[piece.square - 9*i] == '0' || iswhitepiece(board.board, piece.square - 9*i))&& !isblackpiece(board.board, piece.square - 9*i)){
                 piece.legal_moves[piece.square - i*9] = '1';
                 board.legal_black_moves[piece.square - i*9] = '1';
+                board.interpose_help_black[piece.square - i*9] = '1';
                 if(iswhitepiece(board.board, piece.square - 9*i)){
                     breaker = true;
                 }
@@ -1031,6 +1071,7 @@ void blackBishopmovement(Board &board){
             if(piece.square-(i*7) >= 0 && (piece.square-(i-1)*7) % 8 != 7 && (board.board[piece.square - 7*i] == '0' || iswhitepiece(board.board, piece.square - 7*i))&& !isblackpiece(board.board, piece.square - 7*i)){
                 piece.legal_moves[piece.square - i*7] = '1';
                 board.legal_black_moves[piece.square - i*7] = '1';
+                board.interpose_help_black[piece.square - i*7] = '1';
                 if(iswhitepiece(board.board, piece.square - 7*i)){
                     breaker = true;
                 }
@@ -1044,6 +1085,7 @@ void blackBishopmovement(Board &board){
             if(piece.square+(i*7) <= 63 && (piece.square+(i-1)*7) % 8 != 0 && (board.board[piece.square + 7*i] == '0' || iswhitepiece(board.board, piece.square + 7*i))&& !isblackpiece(board.board, piece.square + 7*i)){
                 piece.legal_moves[piece.square + i*7] = '1';
                 board.legal_black_moves[piece.square + i*7] = '1';
+                board.interpose_help_black[piece.square + i*7] = '1';
                 if(iswhitepiece(board.board, piece.square + 7*i)){
                     breaker = true;
                 }
@@ -1057,6 +1099,7 @@ void blackBishopmovement(Board &board){
             if(piece.square+(i*9) <= 63 && (piece.square+(i-1)*9) % 8 != 7 && (board.board[piece.square + 9*i] == '0' || iswhitepiece(board.board, piece.square + 9*i))&& !isblackpiece(board.board, piece.square + 9*i)){
                 piece.legal_moves[piece.square + i*9] = '1';
                 board.legal_black_moves[piece.square + i*9] = '1';
+                board.interpose_help_black[piece.square + i*9] = '1';
                 if(iswhitepiece(board.board, piece.square + 9*i)){
                     breaker = true;
                 }
@@ -1194,24 +1237,29 @@ void whiteKnightmovement(Board &board){
         if(piece.square - 10 >= 0 && piece.square % 8 > 1 &&(board.board[piece.square - 10] == '0' || isblackpiece(board.board, piece.square - 10)) && !iswhitepiece(board.board, piece.square - 10)){
             piece.legal_moves[piece.square - 10] = '1';
             board.legal_white_moves[piece.square - 10] = '1';
+            board.interpose_help_white[piece.square - 10] = '1';
         }
         
         if(piece.square - 17 >= 0 && piece.square % 8 > 0 &&(board.board[piece.square - 17] == '0' || isblackpiece(board.board, piece.square - 17)) && !iswhitepiece(board.board, piece.square - 17)){
             piece.legal_moves[piece.square - 17] = '1';
             board.legal_white_moves[piece.square - 17] = '1';
+            board.interpose_help_white[piece.square - 17] = '1';
         }
         if(piece.square - 15 >= 0 && piece.square % 8 < 7 &&(board.board[piece.square - 15] == '0' || isblackpiece(board.board, piece.square - 15)) && !iswhitepiece(board.board, piece.square - 15)){
             piece.legal_moves[piece.square - 15] = '1';
             board.legal_white_moves[piece.square - 15] = '1';
+            board.interpose_help_white[piece.square - 15] = '1';
         }
         if(piece.square - 6 >= 0 && piece.square % 8 < 6 &&(board.board[piece.square - 6] == '0' || isblackpiece(board.board, piece.square - 6)) && !iswhitepiece(board.board, piece.square - 6)){
             piece.legal_moves[piece.square - 6] = '1';
             board.legal_white_moves[piece.square - 6] = '1';
+            board.interpose_help_white[piece.square - 6] = '1';
         }
         
         if(piece.square + 10 <= 63 && piece.square % 8 < 6 &&(board.board[piece.square + 10] == '0' || isblackpiece(board.board, piece.square + 10)) && !iswhitepiece(board.board, piece.square + 10)){
             piece.legal_moves[piece.square + 10] = '1';
             board.legal_white_moves[piece.square + 10] = '1';
+            board.interpose_help_white[piece.square + 10] = '1';
         }
         
         if(piece.square + 17 <= 63 && piece.square % 8 < 7 &&(board.board[piece.square + 17] == '0' || isblackpiece(board.board, piece.square + 17)) && !iswhitepiece(board.board, piece.square + 17)){
@@ -1222,11 +1270,13 @@ void whiteKnightmovement(Board &board){
         if(piece.square + 15 <= 63 && piece.square % 8 > 0 &&(board.board[piece.square + 15] == '0' || isblackpiece(board.board, piece.square + 15)) && !iswhitepiece(board.board, piece.square + 15)){
             piece.legal_moves[piece.square + 15] = '1';
             board.legal_white_moves[piece.square + 15] = '1';
+            board.interpose_help_white[piece.square + 15] = '1';
         }
         
         if(piece.square + 6 <= 63 && piece.square % 8 > 1 &&(board.board[piece.square + 6] == '0' || isblackpiece(board.board, piece.square + 6)) && !iswhitepiece(board.board, piece.square + 6)){
             piece.legal_moves[piece.square + 6] = '1';
             board.legal_white_moves[piece.square + 6] = '1';
+            board.interpose_help_white[piece.square + 6] = '1';
         }
     }
 }
@@ -1238,40 +1288,48 @@ void blackKnightmovement(Board &board){
         if(piece.square - 10 >= 0 && piece.square % 8 > 1 &&(board.board[piece.square - 10] == '0' || iswhitepiece(board.board, piece.square - 10)) && !isblackpiece(board.board, piece.square - 10)){
             piece.legal_moves[piece.square - 10] = '1';
             board.legal_black_moves[piece.square - 10] = '1';
+            board.interpose_help_black[piece.square - 10] = '1';
         }
         
         if(piece.square - 17 >= 0 && piece.square % 8 > 0 &&(board.board[piece.square - 17] == '0' || iswhitepiece(board.board, piece.square - 17)) && !isblackpiece(board.board, piece.square - 17)){
             piece.legal_moves[piece.square - 17] = '1';
             board.legal_black_moves[piece.square - 17] = '1';
+            board.interpose_help_black[piece.square - 17] = '1';
         }
         
         if(piece.square - 15 >= 0 && piece.square % 8 < 7 &&(board.board[piece.square - 15] == '0' || iswhitepiece(board.board, piece.square - 15)) && !isblackpiece(board.board, piece.square - 15)){
             piece.legal_moves[piece.square - 15] = '1';
             board.legal_black_moves[piece.square - 15] = '1';
+            board.interpose_help_black[piece.square - 15] = '1';
         }
         
         if(piece.square - 6 >= 0 && piece.square % 8 < 6 &&(board.board[piece.square - 6] == '0' || iswhitepiece(board.board, piece.square - 6)) && !isblackpiece(board.board, piece.square - 6)){
             piece.legal_moves[piece.square - 6] = '1';
             board.legal_black_moves[piece.square - 6] = '1';
+            board.interpose_help_black[piece.square - 6] = '1';
         }
         
         if(piece.square + 10 <= 63 && piece.square % 8 < 6 &&(board.board[piece.square + 10] == '0' || iswhitepiece(board.board, piece.square + 10)) && !isblackpiece(board.board, piece.square + 10)){
             piece.legal_moves[piece.square + 10] = '1';
             board.legal_black_moves[piece.square + 10] = '1';
+            board.interpose_help_black[piece.square + 10] = '1';
         }
         
         if(piece.square + 17 <= 63 && piece.square % 8 < 7 &&(board.board[piece.square + 17] == '0' || iswhitepiece(board.board, piece.square + 17)) && !isblackpiece(board.board, piece.square + 17)){
             piece.legal_moves[piece.square + 17] = '1';
             board.legal_black_moves[piece.square + 17] = '1';
+            board.interpose_help_black[piece.square + 17] = '1';
         }
         
         if(piece.square + 15 <= 63 && piece.square % 8 > 0 &&(board.board[piece.square + 15] == '0' || iswhitepiece(board.board, piece.square + 15)) && !isblackpiece(board.board, piece.square + 15)){
             piece.legal_moves[piece.square + 15] = '1';
             board.legal_black_moves[piece.square + 15] = '1';
+            board.interpose_help_black[piece.square + 15] = '1';
         }
         if(piece.square + 6 <= 63 && piece.square % 8 > 1 &&(board.board[piece.square + 6] == '0' || iswhitepiece(board.board, piece.square + 6)) && !isblackpiece(board.board, piece.square + 6)){
             piece.legal_moves[piece.square + 6] = '1';
             board.legal_black_moves[piece.square + 6] = '1';
+            board.interpose_help_black[piece.square + 6] = '1';
         }  
     }  
 }
@@ -1282,9 +1340,11 @@ void Whitepawnmovement(Board &board){
         pawn.legal_moves[pawn.square] = 'P';
         if(pawn.square > 7 && board.board[pawn.square - 8] == '0'){
             pawn.legal_moves[pawn.square - 8] = '1';
+            board.interpose_help_white[pawn.square - 8] = '1';
         }
         if((pawn.square / 8) == 6 && pawn.square > 16 && board.board[pawn.square - 8] == '0' && board.board[pawn.square - 16] == '0'){
             pawn.legal_moves[pawn.square - 16] = '1';
+            board.interpose_help_white[pawn.square - 16] = '1';
         }
         if(pawn.square > 7 && pawn.square % 8 != 0){
             board.legal_white_moves[pawn.square - 9] = '1';
@@ -1315,9 +1375,11 @@ void Blackpawnmovement(Board &board){
         pawn.legal_moves[pawn.square] = 'P';
         if(pawn.square < 56 && board.board[pawn.square + 8] == '0'){
             pawn.legal_moves[pawn.square + 8] = '1';
+            board.interpose_help_black[pawn.square + 8] = '1';
         }
         if(pawn.square / 8 == 1 && board.board[pawn.square + 8] == '0' && board.board[pawn.square + 16] == '0'){
             pawn.legal_moves[pawn.square + 16] = '1';
+            board.interpose_help_black[pawn.square + 16] = '1';
         }
         if(pawn.square < 56 && pawn.square % 8 != 0){
             board.legal_black_moves[pawn.square + 7] = '1';
@@ -1354,6 +1416,8 @@ int pawnfinder(std::vector<pawn> &pawns, int square){
 void legal_moves(Board &board){
     board.fillboard(board.legal_white_moves);
     board.fillboard(board.legal_black_moves);
+    board.fillboard(board.interpose_help_black);
+    board.fillboard(board.interpose_help_white);
     whiteQueenmovement(board);
     whiteRookmovement(board);
     whiteBishopmovement(board);
@@ -1840,6 +1904,7 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
         }
     }
     
+    //idx3 von Claude
 
     if(board.board[startingsquare] == 'Q' && (idx3 = queenfinder(board.whiteQueen, startingsquare)) != -1){
         board.whiteQueen[idx3].square = targetsquare;
@@ -2463,8 +2528,8 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
 
     double maxEval;
     double minEval;
-    
-    if(depth <= 0 && ((board.Previous_moves.size() > 0 && !board.Previous_moves.back().is_forcing) || (depth <= -4 && !board.Previous_moves[board.Previous_moves.size() - 2].was_check && board.Previous_moves.back().difference < 0))){ 
+
+    if(depth <= 0 && (((board.Previous_moves.size() > 0 && !board.Previous_moves.back().is_forcing) || depth <= -4) && ((board.Previous_moves.size() > 1  && !board.Previous_moves[board.Previous_moves.size() - 2].was_check)))){
         positions++;
         return evaluation(board);
     }
@@ -2721,15 +2786,8 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
         }
         
         else{
-            if(starts[i] == 27 && targets[i] == 18 && depth == constant_depth){
-                board.printer = true;
-            }
-            else if(depth == constant_depth){
-                board.printer = false;
-            }
             domove(board, starts[i], targets[i], '0');
             double tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
-
             undomove(board);
 
             if(board.turn){
@@ -2810,10 +2868,10 @@ void remember_board(Board &board, int startingsquare, int targetsquare, char pro
     else{
         previous_move.is_forcing = false;
     }
-    if(board.turn && check_check_white(board, startingsquare, targetsquare)){
+    if(board.turn && check_check_black(board, startingsquare, targetsquare)){
         previous_move.was_check = true;
     }
-    else if(!board.turn && check_check_black(board, startingsquare, targetsquare)){
+    else if(!board.turn && check_check_white(board, startingsquare, targetsquare)){
         previous_move.was_check = true;
     }
     if(board.Previous_moves.size() > 0 && board.Previous_moves.back().was_check){
@@ -3078,6 +3136,7 @@ void undomove(Board &board){
             board.whiterook[rookfinder(board.whiterook, 56)].hasmoved = false;
         }
         board.Previous_moves.pop_back();
+        legal_moves(board);
     }
 }
 
@@ -3359,7 +3418,7 @@ double evaluation(Board &board){
             eval += 0.2;
         }
     }
-    if(piececounter(board.board) > 6){
+    if((piececounter(board.board) > 6 && board.whiteQueen.size() != 0 && board.blackQueen.size() != 0) || (piececounter(board.board) > 10 && board.whiteQueen.size() == 0 && board.blackQueen.size() == 0)){
         if(board.whiteKing[0].square == 63 || board.whiteKing[0].square == 62 || board.whiteKing[0].square == 58 || board.whiteKing[0].square == 57 || board.whiteKing[0].square == 56){
             eval += 1;
         }
@@ -3371,7 +3430,7 @@ double evaluation(Board &board){
     }
     if(piececounter(board.board) <= 2 && board.whiteQueen.size() == 0){ //maximiert Königsmobilität im Endspiel
         eval -= onecounter(board.blackKing[0].legal_destinations) / 8;
-        eval -= 8/(abs(board.blackKing[0].square / 8 - 4)+1);
+        eval -= 4/(abs(board.blackKing[0].square / 8 - 4)+1);
         for(pawn &Pawn : board.whitePawns){ //sollte die Distanz zwischen König und dem nächsten unverteidigtwn Bauern minimieren.
             if(!square_attacked(board.board, Pawn.square, 1)){
                 if(distance(board.blackKing[0].square, Pawn.square) < dist){
@@ -3383,7 +3442,7 @@ double evaluation(Board &board){
     }
     if(piececounter(board.board) <= 2 && board.blackQueen.size() == 0){ //maximiert Königsmobilität im Endspiel
         eval += onecounter(board.whiteKing[0].legal_destinations) / 8;
-        eval += 8/(abs(board.whiteKing[0].square / 8 - 4)+1);
+        eval += 4/(abs(board.whiteKing[0].square / 8 - 4)+2);
         for(pawn &Pawn : board.blackPawns){ //sollte die Distanz zwischen König und dem nächsten unverteidigtwn Bauern minimieren.
             if(!square_attacked(board.board, Pawn.square, 0)){
                 if(distance(board.whiteKing[0].square, Pawn.square) < dist){
@@ -3656,4 +3715,519 @@ void weak_pawns(Board &board){
             pawn.is_weak = false;
         }
     }
+}
+
+bool is_mate_threatened(Board &board, bool bywhite){ //Die Funktion schaut, ob es ein Schach gibt nachdem der Gegner keinen Königszug hat. Er schaut nicht, ob es tatsächlich matt ist
+    legal_moves(board);
+    int counter = 0;
+    if(bywhite){
+        for(pawn &Pawn : board.whitePawns){
+            for(int i = 0; i < 64; i++){
+                if(Pawn.legal_moves[i] == '1' && i != Pawn.square){
+                    domove(board, Pawn.square, i, '0');
+                    if(square_attacked(board.board, board.blackKing[0].square, 1)){
+                        for(int j = 0; j < 64; j++){
+                            if(board.blackKing[0].legal_moves[j] == '1'){
+                                domove(board, board.blackKing[0].square, j, '0');
+                                if(check_check_black(board, board.blackKing[0].square, j)){
+                                    counter++;
+                                }
+                                undomove(board);
+                            }
+                            if(counter == onecounter(board.blackKing[0].legal_moves) && counter != 0){
+                                return true;
+                            }
+                            std::cout << "B" << '\n';
+                        }
+                    }
+                    counter = 0;
+                    undomove(board);
+                }
+            }
+        }
+        counter = 0;
+        for(Knight &knight : board.whiteKnight){
+            for(int i = 0; i < 64; i++){
+                if(knight.legal_moves[i] == '1' && i != knight.square){
+                    domove(board, knight.square, i, '0');
+                    if(square_attacked(board.board, board.blackKing[0].square, 1)){
+                        for(int j = 0; j < 64; j++){
+                            if(board.blackKing[0].legal_moves[j] == '1'){
+                                domove(board, board.blackKing[0].square, j, '0');
+                                if(check_check_black(board, board.blackKing[0].square, j)){
+                                    counter++;
+                                }
+                                undomove(board);
+                            }
+                        }
+                        if(counter == onecounter(board.blackKing[0].legal_moves) && counter != 0){
+                            return true;
+                        }
+                    }
+                    counter = 0;
+                    undomove(board);
+                }
+            }
+        }
+        counter = 0;
+        for(Bishop &bishop : board.whiteBishop){
+            for(int i = 0; i < 64; i++){
+                if(bishop.legal_moves[i] == '1' && i != bishop.square){
+                    domove(board, bishop.square, i, '0');
+                    if(square_attacked(board.board, board.blackKing[0].square, 1)){
+                        for(int j = 0; j < 64; j++){
+                            if(board.blackKing[0].legal_moves[j] == '1'){
+                                domove(board, board.blackKing[0].square, j, '0');
+                                if(check_check_black(board, board.blackKing[0].square, j)){
+                                    counter++;
+                                }
+                                undomove(board);
+                            }
+                        }
+                        if(counter == onecounter(board.blackKing[0].legal_moves)  && counter != 0){
+                            return true;
+                        }
+                    }
+                    counter = 0;
+                    undomove(board);
+                }
+            }
+        }
+        counter = 0;
+        for(Rook &rook : board.whiterook){
+            for(int i = 0; i < 64; i++){
+                if(rook.legal_moves[i] == '1' && i != rook.square){
+                    domove(board, rook.square, i, '0');
+                    if(square_attacked(board.board, board.blackKing[0].square, 1)){
+                        for(int j = 0; j < 64; j++){
+                            if(board.blackKing[0].legal_moves[j] == '1'){
+                                domove(board, board.blackKing[0].square, j, '0');
+                                if(check_check_black(board, board.blackKing[0].square, j)){
+                                    counter++;
+                                }
+                                undomove(board);
+                            }
+                            if(counter == onecounter(board.blackKing[0].legal_moves) &&  counter != 0){
+                                return true;
+                            }
+                        }
+                    }
+                    counter = 0;
+                    undomove(board);
+                }
+            }
+        }
+        counter = 0;
+        for(Queen &queen : board.whiteQueen){
+            for(int i = 0; i < 64; i++){
+                if(queen.legal_moves[i] == '1' && i != queen.square){
+                    domove(board, queen.square, i, '0');    
+                    if(square_attacked(board.board, board.blackKing[0].square, 1)){
+                        for(int j = 0; j < 64; j++){
+                            if(board.blackKing[0].legal_moves[j] == '1'){
+                                domove(board, board.blackKing[0].square, j, '0');
+                                if(check_check_black(board, board.blackKing[0].square, j)){
+                                    counter++;
+                                }
+                                undomove(board);
+                            }
+                            if(counter == onecounter(board.blackKing[0].legal_moves) && counter != 0){
+                                return true;
+                            }
+                        }
+                    }
+                    counter = 0;
+                    undomove(board);
+                }
+            }
+        }
+        for(int i = 0; i < 64; i++){
+            if(board.whiteKing[0].legal_moves[i] == '1'){
+                domove(board, board.whiteKing[0].square, i, '0');
+                if(square_attacked(board.board, board.blackKing[0].square, 1)){
+                    for(int j = 0; j < 64; j++){
+                        if(board.blackKing[0].legal_moves[j] == '1'){
+                            domove(board, board.blackKing[0].square, j, '0');
+                                if(check_check_black(board, board.blackKing[0].square, j)){
+                                    counter++;
+                                }
+                                undomove(board);
+                        }
+                        if(counter == onecounter(board.blackKing[0].legal_moves)){
+                            return true;
+                        }
+                    }
+                }
+                counter = 0;
+                undomove(board);
+            }
+        } 
+        counter = 0;
+    }
+    if(!bywhite){
+        for(pawn &Pawn : board.blackPawns){
+            for(int i = 0; i < 64; i++){
+                if(Pawn.legal_moves[i] == '1' && i != Pawn.square){
+                    domove(board, Pawn.square, i, '0');
+                    if(square_attacked(board.board, board.whiteKing[0].square, 0)){
+                        for(int j = 0; j < 64; j++){
+                            if(board.whiteKing[0].legal_moves[j] == '1'){
+                                domove(board, board.whiteKing[0].square, j, '0');
+                                if(check_check_white(board, board.whiteKing[0].square, j)){
+                                    counter++;
+                                }
+                                undomove(board);
+                            }
+                            if(counter == onecounter(board.whiteKing[0].legal_moves) && counter != 0){
+                                return true;
+                            }
+                        }
+                    }
+                    counter = 0;
+                    undomove(board);
+                }
+            }
+        }
+        counter = 0;
+        for(Knight &knight : board.blackKnight){
+            for(int i = 0; i < 64; i++){
+                if(knight.legal_moves[i] == '1' && i != knight.square){
+                    domove(board, knight.square, i, '0');
+                    if(square_attacked(board.board, board.whiteKing[0].square, 0)){
+                        for(int j = 0; j < 64; j++){
+                            if(board.whiteKing[0].legal_moves[j] == '1'){
+                                domove(board, board.whiteKing[0].square, j, '0');
+                                if(check_check_white(board, board.whiteKing[0].square, j)){
+                                    counter++;
+                                }
+                                undomove(board);
+                            }
+                            if(counter == onecounter(board.whiteKing[0].legal_moves) && counter != 0){
+                                return true;
+                            }
+                        }
+                    }
+                    counter = 0;
+                    undomove(board);
+                }
+            }
+        }
+        counter = 0;
+        for(Bishop &bishop : board.blackBishop){
+            for(int i = 0; i < 64; i++){
+                if(bishop.legal_moves[i] == '1' && i != bishop.square){
+                    domove(board, bishop.square, i, '0');
+                    if(square_attacked(board.board, board.whiteKing[0].square, 0)){
+                        for(int j = 0; j < 64; j++){
+                            if(board.whiteKing[0].legal_moves[j] == '1'){
+                                domove(board, board.whiteKing[0].square, j, '0');
+                                if(check_check_white(board, board.whiteKing[0].square, j)){
+                                    counter++;
+                                }
+                                undomove(board);
+                            }
+                            if(counter == onecounter(board.whiteKing[0].legal_moves) && counter != 0){
+                                return true;
+                            }
+                        }
+                    }
+                    counter = 0;
+                    undomove(board);
+                }
+            }
+        }
+        counter = 0;
+        for(Rook &rook : board.blackrook){
+            for(int i = 0; i < 64; i++){
+                if(rook.legal_moves[i] == '1' && i != rook.square){
+                    domove(board, rook.square, i, '0');
+                    if(square_attacked(board.board, board.whiteKing[0].square, 0)){
+                        for(int j = 0; j < 64; j++){
+                            if(board.whiteKing[0].legal_moves[j] == '1'){
+                                domove(board, board.whiteKing[0].square, j, '0');
+                                if(check_check_white(board, board.whiteKing[0].square, j)){
+                                    counter++;
+                                }
+                                undomove(board);
+                            }
+                        }
+                        if(counter == onecounter(board.whiteKing[0].legal_moves) && counter != 0 ){
+                            return true;
+                        }
+                    }
+                    counter = 0;
+                    undomove(board);
+                }
+            }
+        }
+        counter = 0;
+        
+        for(Queen &queen : board.blackQueen){
+            for(int i = 0; i < 64; i++){
+                if(queen.legal_moves[i] == '1' && i != queen.square){
+                    domove(board, queen.square, i, '0');
+                    if(square_attacked(board.board, board.whiteKing[0].square, 0)){
+                        for(int j = 0; j < 64; j++){
+                            if(board.whiteKing[0].legal_moves[j] == '1'){
+                                domove(board, board.whiteKing[0].square, j, '0');
+                                if(check_check_white(board, board.whiteKing[0].square, j)){
+                                    counter++;
+                                }
+                                undomove(board);
+                            }
+                            if(counter == onecounter(board.whiteKing[0].legal_moves) && counter != 0){
+                                return true;
+                            }
+                        }
+                    }
+                    counter = 0;
+                    undomove(board);
+                }
+            }
+        }
+        counter = 0;
+        for(int i = 0; i < 64; i++){
+            if(board.blackKing[0].legal_moves[i] == '1'){
+                domove(board, board.blackKing[0].square, i, '0');
+                if(square_attacked(board.board, board.whiteKing[0].square, 1)){
+                    for(int j = 0; j < 64; j++){
+                        if(board.whiteKing[0].legal_moves[j] == '1'){
+                            domove(board, board.whiteKing[0].square, j, '0');
+                                if(check_check_white(board, board.whiteKing[0].square, j)){
+                                    counter++;
+                                }
+                                undomove(board);
+                        }
+                        if(counter == onecounter(board.whiteKing[0].legal_moves) && counter != 0){
+                            return true;
+                        }
+                    }
+                }
+                counter = 0;
+                undomove(board);
+            }
+        }
+    }
+    return false;
+}
+
+bool can_interpose(Board &board, int startingsquare, int targetsquare, bool color){
+    legal_moves(board);
+    if(!color){
+        if(startingsquare / 8 == targetsquare / 8){
+            if(startingsquare - targetsquare > 0){
+                for(int i = startingsquare; i < targetsquare; i++){
+                    if(board.interpose_help_black[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+            if(startingsquare - targetsquare < 0){
+                for(int i = startingsquare; i > targetsquare; i--){
+                    if(board.interpose_help_black[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+        if(startingsquare % 8 == targetsquare % 8){
+            if(startingsquare - targetsquare > 0){
+                for(int i = startingsquare; i < targetsquare; i += 8){
+                    if(board.interpose_help_black[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+            if(startingsquare - targetsquare < 0){
+                for(int i = startingsquare; i > targetsquare; i -= 8){
+                    if(board.interpose_help_black[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+        if(abs(startingsquare - targetsquare) % 7 == 0){
+            if(startingsquare - targetsquare > 0){
+                for(int i = startingsquare; i > targetsquare; i -= 7){
+                    if(board.interpose_help_black[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+            if(startingsquare - targetsquare < 0){
+                for(int i = startingsquare; i < targetsquare; i += 7){
+                    if(board.interpose_help_black[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+        }
+        if(abs(startingsquare - targetsquare) % 9 == 0){
+            if(startingsquare - targetsquare > 0){
+                for(int i = startingsquare; i < targetsquare; i += 9){
+                    if(board.interpose_help_black[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+            if(startingsquare - targetsquare < 0){
+                for(int i = startingsquare; i > targetsquare; i -= 9){
+                    if(board.interpose_help_black[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+    }
+    if(color){
+        if(startingsquare / 8 == targetsquare / 8){
+            if(startingsquare - targetsquare > 0){
+                for(int i = startingsquare; i < targetsquare; i++){
+                    if(board.interpose_help_white[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+            if(startingsquare - targetsquare < 0){
+                for(int i = startingsquare; i > targetsquare; i--){
+                    if(board.interpose_help_white[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+        if(startingsquare % 8 == targetsquare % 8){
+            if(startingsquare - targetsquare > 0){
+                for(int i = startingsquare; i < targetsquare; i += 8){
+                    if(board.interpose_help_white[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+            if(startingsquare - targetsquare < 0){
+                for(int i = startingsquare; i > targetsquare; i -= 8){
+                    if(board.interpose_help_white[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+        if(abs(startingsquare - targetsquare) % 7 == 0){
+            if(startingsquare - targetsquare > 0){
+                for(int i = startingsquare; i < targetsquare; i += 7){
+                    if(board.interpose_help_white[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+            if(startingsquare - targetsquare < 0){
+                for(int i = startingsquare; i > targetsquare; i -= 7){
+                    if(board.interpose_help_white[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+        }
+        if(abs(startingsquare - targetsquare) % 9 == 0){
+            if(startingsquare - targetsquare > 0){
+                for(int i = startingsquare; i < targetsquare; i += 9){
+                    if(board.interpose_help_white[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+            if(startingsquare - targetsquare < 0){
+                for(int i = startingsquare; i > targetsquare; i -= 9){
+                    if(board.interpose_help_white[i] == '1'){
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+    }
+    return false;
+}
+
+bool only_king(Board &board, int square, bool color){
+    legal_moves(board);
+    if(color){
+        for(pawn Pawn : board.whitePawns){
+            if(Pawn.legal_moves[square] == '1'){
+                return false;
+            }
+        }
+        for(Knight knight : board.whiteKnight){
+            if(knight.legal_moves[square] == '1'){
+                return false;
+            }
+        }
+        for(Bishop bishop : board.whiteBishop){
+            if(bishop.legal_moves[square] == '1'){
+                return false;
+            }
+        }
+        for(Rook rook : board.whiterook){
+            if(rook.legal_moves[square] == '1'){
+                return false;
+            }
+        }
+        for(Queen queen : board.whiteQueen){
+            if(queen.legal_moves[square] == '1'){
+                return false;
+            }
+        }
+        if((square + 8 == board.whiteKing[0].square && square < 56) || (square - 8 == board.whiteKing[0].square && square > 7) || (square + 1 == board.whiteKing[0].square && square % 8 != 7) || (square - 1 == board.whiteKing[0].square && square % 8 != 0) || (square - 7 == board.whiteKing[0].square && square > 7 && square % 8 != 7) || (square - 9 == board.whiteKing[0].square && square > 7 && square % 8 != 0) || (square + 7 == board.whiteKing[0].square && square < 56 && square % 8 != 0) || (square + 9 == board.whiteKing[0].square && square < 56 && square % 8 != 7)){
+            return true;
+        }
+    }
+    if(!color){
+        for(pawn Pawn : board.blackPawns){
+            if(Pawn.legal_moves[square] == '1'){
+                return false;
+            }
+        }
+        for(Knight knight : board.blackKnight){
+            if(knight.legal_moves[square] == '1'){
+                return false;
+            }
+        }
+        for(Bishop bishop : board.blackBishop){
+            if(bishop.legal_moves[square] == '1'){
+                return false;
+            }
+        }
+        for(Rook rook : board.blackrook){
+            if(rook.legal_moves[square] == '1'){
+                return false;
+            }
+        }
+        for(Queen queen : board.blackQueen){
+            if(queen.legal_moves[square] == '1'){
+                return false;
+            }
+        }
+        if(board.blackKing[0].legal_moves[square] == '1'){
+            return true;
+        }
+    }
+    return false;
+
 }
