@@ -4,6 +4,10 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
+#include <random>
+
+
 
 
 class King{
@@ -81,6 +85,14 @@ class Previous_move{
     char previous_promotion;
     double difference;
     bool was_check = false;
+    
+};
+
+class zobrist{
+    public:
+    uint64_t hash;
+    double eval;
+    int depth;
 };
 
 class Board{ //Idee aus ChatGPT
@@ -127,6 +139,14 @@ class Board{ //Idee aus ChatGPT
     bool printer;
     std::vector<char> interpose_help_white;
     std::vector<char> interpose_help_black;
+    uint64_t hash_key = 0;
+    uint64_t h_pieces[12][64];
+    uint64_t h_castling[16];
+    uint64_t h_en_passent[8];
+    uint64_t h_turn;
+    std::vector<zobrist> transposition_table;
+    int hash_index;
+    uint64_t hash;
 
     void printboard(std::vector<char> board){
         for(int i = 0; i < 64; i++){
@@ -138,7 +158,7 @@ class Board{ //Idee aus ChatGPT
         std::cout << '\n';
     }
     void fillboard(std::vector<char> &board){
-    board.assign(64, '0'); //command von Claude
+        board.assign(64, '0'); //command von Claude
     }
 };
 
@@ -200,22 +220,17 @@ void weak_pawns(Board &board);
 bool is_mate_threatened(Board &board, bool bywhite);
 bool can_interpose(Board &board, int startingsquare, int targetsquare, bool color);
 bool only_king(Board &board, int square, bool color);
-
-
-
-
-
-
-
-
-
+uint64_t hashing(Board &board);
+void assign_random_key(uint64_t pieces[12][64], uint64_t castling_rigts[16], uint64_t en_passent[8], uint64_t turn); 
+bool hashcheck(Board &board, uint64_t temp_hash);
+int castling_help(Board &board);
 
 
 
 
 
 int main(){
-    std::string FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "1r4k1/P6p/8/8/1R6/8/5PP1/6K1 w - - 5 40"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -236,8 +251,14 @@ int main(){
     char promotion;
     int rep = 0;
     bool breaker = false;
-
+    int random_num;
+    bool cont = true;
+    
+    
     Board board;
+
+    assign_random_key(board.h_pieces, board.h_castling, board.h_en_passent, board.h_turn);
+
 
     board.fillboard(board.board);
 
@@ -271,14 +292,25 @@ int main(){
     else{
         black_expansion(board);         
     }
+    board.hash = hashing(board);
 
-    Tree(board, 4, positions, 4, alpha, beta);
-    std::cout << board.move << '\n';
+    std::cout << board.hash << '\n';
+    domove(board, 8, 0, 'B');
+    std::cout << board.hash << '\n';
+    std::cout << "actual hash: " << hashing(board) << '\n';
+    undomove(board);
+    std::cout << board.hash << '\n';
+    std::cout << "actualhash: " << hashing(board) << '\n';
+
 
     /*
 
+
+    
+
     while(board.legal_target_squares.size() != 0 && !breaker){
         if(board.turn){
+            hashing(board);
             cycle(board, 4);
             if(board.board[square_to_index(board.move[0], board.move[1])] == 'P' && board.move[3] == '8'){
                 domove(board, square_to_index(board.move[0], board.move[1]), square_to_index(board.move[2], board.move[3]), board.move[4]);
@@ -1805,10 +1837,14 @@ bool check_check_white(Board &board, int startingsquare, int targetsquare){
 }
 
 void domove(Board &board, int startingsquare, int targetsquare, char promotion){
+    int castle_helper = 0;
+    int remember_rights = castling_help(board);
     remember_board(board, startingsquare, targetsquare, promotion);
     bool showboard = false;
     board.previous_move = index_to_square(startingsquare) + index_to_square(targetsquare);
     if(board.board[startingsquare] == 'P'){
+        board.hash ^= board.h_pieces[0][startingsquare];
+        board.hash ^= board.h_pieces[0][targetsquare];
         int idx = pawnfinder(board.whitePawns, startingsquare);
         if(idx != -1){
             board.whitePawns[idx].square = targetsquare;
@@ -1818,23 +1854,30 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             idx = pawnfinder(board.blackPawns, startingsquare + 1);
             if(idx != -1){
                 board.blackPawns.erase(board.blackPawns.begin() + idx);
+                board.hash ^= board.h_pieces[1][targetsquare + 8];
+                board.hash ^= board.h_en_passent[targetsquare % 8];
             }
         }
         if(startingsquare - 9 == targetsquare && board.board[targetsquare] == '0' && board.board[startingsquare - 1] == 'p'){
             board.board[startingsquare - 1] = '0';
             idx = pawnfinder(board.blackPawns, startingsquare - 1);
             if(idx != -1){
+                board.hash ^= board.h_pieces[1][targetsquare + 8];
                 board.blackPawns.erase(board.blackPawns.begin() + idx);
+                board.hash ^= board.h_en_passent[targetsquare % 8];
             }
         }
     }
     for(int i = 0; i < board.blackPawns.size(); i++){
         if(board.blackPawns[i].en_passent_able == true){
             board.blackPawns[i].en_passent_able = false;
+            board.hash ^= board.h_en_passent[board.blackPawns[i].square % 8];
         }
     }
 
     if(board.board[startingsquare] == 'p'){
+        board.hash ^= board.h_pieces[1][startingsquare];
+        board.hash ^= board.h_pieces[1][targetsquare];
         int idx2 = pawnfinder(board.blackPawns, startingsquare);
         if(idx2 != -1){
             board.blackPawns[idx2].square = targetsquare;
@@ -1843,6 +1886,8 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             board.board[startingsquare + 1] = '0';
             idx2 = pawnfinder(board.whitePawns, startingsquare + 1);
             if(idx2 != -1){
+                board.hash ^= board.h_en_passent[targetsquare % 8];
+                board.hash ^= board.h_pieces[0][targetsquare - 8];
                 board.whitePawns.erase(board.whitePawns.begin() + idx2);
             }
         }
@@ -1850,12 +1895,15 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             board.board[startingsquare - 1] = '0';
             idx2 = pawnfinder(board.whitePawns, startingsquare - 1);
             if(idx2 != -1){
+                board.hash ^= board.h_en_passent[targetsquare % 8];
+                board.hash ^= board.h_pieces[0][targetsquare - 8];
                 board.whitePawns.erase(board.whitePawns.begin() + idx2);
             }
         } 
     }
     for(int i = 0; i < board.whitePawns.size(); i++){
         if(board.whitePawns[i].en_passent_able == true){
+            board.hash ^= board.h_en_passent[board.whitePawns[i].square % 8];
             board.whitePawns[i].en_passent_able = false;
         }
     } 
@@ -1864,14 +1912,19 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
     if(board.board[startingsquare] == 'R' && (idx3 = rookfinder(board.whiterook, startingsquare)) != -1){
         board.whiterook[idx3].hasmoved = true;
         board.whiterook[idx3].square = targetsquare;
-    
+        board.hash ^= board.h_pieces[6][startingsquare];
+        board.hash ^= board.h_pieces[6][targetsquare];
     }
     if(board.board[startingsquare] == 'r' && (idx3 = rookfinder(board.blackrook, startingsquare)) != -1){
         board.blackrook[idx3].hasmoved = true;
         board.blackrook[idx3].square = targetsquare;
+        board.hash ^= board.h_pieces[7][startingsquare];
+        board.hash ^= board.h_pieces[7][targetsquare];
     }
     
     if(board.board[startingsquare] == 'K'){
+        board.hash ^= board.h_pieces[10][startingsquare];
+        board.hash ^= board.h_pieces[10][targetsquare];
         board.whiteKing[0].hasmoved = true;
         board.whiteKing[0].square = targetsquare;
         if(startingsquare - targetsquare == 2 && board.board[56] == 'R' && (idx3 = rookfinder(board.whiterook, 56)) != -1){
@@ -1879,84 +1932,120 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             board.whiterook[idx3].square = 59;
             board.board[59] = 'R';
             board.board[56] = '0';
+            board.hash ^= board.h_pieces[6][59];
+            board.hash ^= board.h_pieces[6][56];
         }
         if(startingsquare - targetsquare == -2 && board.board[63] == 'R' && (idx3 = rookfinder(board.whiterook, 63)) != -1){
             board.whiterook[idx3].hasmoved = true;
             board.whiterook[idx3].square = 61;
             board.board[61] = 'R';
             board.board[63] = '0';
+            board.hash ^= board.h_pieces[6][61];
+            board.hash ^= board.h_pieces[6][63];
         }
     }
+
     if(board.board[startingsquare] == 'k'){
         board.blackKing[0].hasmoved = true;
         board.blackKing[0].square = targetsquare;
+        board.hash ^= board.h_pieces[11][startingsquare];
+        board.hash ^= board.h_pieces[11][targetsquare];
         if(startingsquare - targetsquare == 2 && board.board[0] == 'r' && (idx3 = rookfinder(board.blackrook, 0)) != -1){
             board.blackrook[idx3].hasmoved = true;
             board.blackrook[idx3].square = 3;
             board.board[3] = 'r';
             board.board[0] = '0';
+            board.hash ^= board.h_pieces[7][3];
+            board.hash ^= board.h_pieces[7][0];
         }
         if(startingsquare - targetsquare == -2 && board.board[7] == 'r' && (idx3 = rookfinder(board.blackrook, 7)) != -1){
             board.blackrook[idx3].hasmoved = true;
             board.blackrook[idx3].square = 5;
             board.board[5] = 'r';
             board.board[7] = '0';
+            board.hash ^= board.h_pieces[7][5];
+            board.hash ^= board.h_pieces[7][7];
         }
     }
+
+    board.hash ^= board.h_castling[castling_help(board)];
+    board.hash ^= board.h_castling[remember_rights];
     
     //idx3 von Claude
 
     if(board.board[startingsquare] == 'Q' && (idx3 = queenfinder(board.whiteQueen, startingsquare)) != -1){
         board.whiteQueen[idx3].square = targetsquare;
+        board.hash ^= board.h_pieces[8][startingsquare];
+        board.hash ^= board.h_pieces[8][targetsquare];
     }
     if(board.board[startingsquare] == 'q' && (idx3 = queenfinder(board.blackQueen, startingsquare)) != -1){
         board.blackQueen[idx3].square = targetsquare;
+        board.hash ^= board.h_pieces[9][startingsquare];
+        board.hash ^= board.h_pieces[9][targetsquare];
     }
 
     if(board.board[startingsquare] == 'B' && (idx3 = bishopfinder(board.whiteBishop, startingsquare)) != -1){
         board.whiteBishop[idx3].square = targetsquare;
+        board.hash ^= board.h_pieces[4][startingsquare];
+        board.hash ^= board.h_pieces[4][targetsquare];
     }
     if(board.board[startingsquare] == 'b' && (idx3 = bishopfinder(board.blackBishop, startingsquare)) != -1){
         board.blackBishop[idx3].square = targetsquare;
+        board.hash ^= board.h_pieces[5][startingsquare];
+        board.hash ^= board.h_pieces[5][targetsquare];
     }
 
     if(board.board[startingsquare] == 'N' && (idx3 = knightfinder(board.whiteKnight, startingsquare)) != -1){
         board.whiteKnight[idx3].square = targetsquare;
+        board.hash ^= board.h_pieces[2][startingsquare];
+        board.hash ^= board.h_pieces[2][targetsquare];
 
     }
     if(board.board[startingsquare] == 'n' && (idx3 = knightfinder(board.blackKnight, startingsquare)) != -1){
         board.blackKnight[idx3].square = targetsquare;
+        board.hash ^= board.h_pieces[3][startingsquare];
+        board.hash ^= board.h_pieces[3][targetsquare];
     }
 
     if(board.board[targetsquare] == 'P' && (idx3 = pawnfinder(board.whitePawns, targetsquare)) != -1){
         board.whitePawns.erase(board.whitePawns.begin() + idx3);
+        board.hash ^= board.h_pieces[0][targetsquare];
     }
     if(board.board[targetsquare] == 'p' && (idx3 = pawnfinder(board.blackPawns, targetsquare)) != -1){
         board.blackPawns.erase(board.blackPawns.begin() + idx3);
+        board.hash ^= board.h_pieces[1][targetsquare];
     }
     if(board.board[targetsquare] == 'N' && (idx3 = knightfinder(board.whiteKnight, targetsquare)) != -1){
         board.whiteKnight.erase(board.whiteKnight.begin() + idx3);
+        board.hash ^= board.h_pieces[2][targetsquare];
     }
     if(board.board[targetsquare] == 'n' && (idx3 = knightfinder(board.blackKnight, targetsquare)) != -1){
         board.blackKnight.erase(board.blackKnight.begin() + idx3);
+        board.hash ^= board.h_pieces[3][targetsquare];
     }
     if(board.board[targetsquare] == 'B' && (idx3 = bishopfinder(board.whiteBishop, targetsquare)) != -1){
         board.whiteBishop.erase(board.whiteBishop.begin() + idx3);
+        board.hash ^= board.h_pieces[4][targetsquare];
     }
     if(board.board[targetsquare] == 'b' && (idx3 = bishopfinder(board.blackBishop, targetsquare)) != -1){
         board.blackBishop.erase(board.blackBishop.begin() + idx3);
+        board.hash ^= board.h_pieces[5][targetsquare];
     }
     if(board.board[targetsquare] == 'R' && (idx3 = rookfinder(board.whiterook, targetsquare)) != -1){
         board.whiterook.erase(board.whiterook.begin() + idx3);
+        board.hash ^= board.h_pieces[6][targetsquare];
     }
     if(board.board[targetsquare] == 'r' && (idx3 = rookfinder(board.blackrook, targetsquare)) != -1){
         board.blackrook.erase(board.blackrook.begin() + idx3);
+        board.hash ^= board.h_pieces[7][targetsquare];
     }
     if(board.board[targetsquare] == 'Q' && (idx3 = queenfinder(board.whiteQueen, targetsquare)) != -1){
         board.whiteQueen.erase(board.whiteQueen.begin() + idx3);
+        board.hash ^= board.h_pieces[8][targetsquare];
     }
     if(board.board[targetsquare] == 'q' && (idx3 = queenfinder(board.blackQueen, targetsquare)) != -1){
         board.blackQueen.erase(board.blackQueen.begin() + idx3);
+        board.hash ^= board.h_pieces[9][targetsquare];
     }
 
     board.board[targetsquare] = board.board[startingsquare];
@@ -1966,11 +2055,13 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
     idx3 = pawnfinder(board.whitePawns, targetsquare);
     if(idx3 != -1 && board.board[targetsquare] == 'P' && startingsquare - targetsquare == 16 && ((board.board[targetsquare + 1] == 'p' && targetsquare % 8 != 7  && !check_check_black(board, targetsquare + 1, targetsquare + 8)) || (board.board[targetsquare - 1] == 'p' && targetsquare % 8 != 0 && !check_check_black(board, targetsquare - 1, targetsquare + 8)))){
         board.whitePawns[idx3].en_passent_able = true;
+        board.hash ^= board.h_en_passent[board.whitePawns[idx3].square % 8];
     }
 
     idx3 = pawnfinder(board.blackPawns, targetsquare);
     if(idx3 != -1 && board.board[targetsquare] == 'p' && startingsquare - targetsquare == -16 && ((board.board[targetsquare + 1] == 'P' && targetsquare % 8 != 7 && !check_check_white(board, targetsquare + 1, targetsquare - 8)) || (board.board[targetsquare - 1] == 'P' && targetsquare % 8 != 0 && !check_check_white(board, targetsquare - 1, targetsquare - 8)))){
         board.blackPawns[idx3].en_passent_able = true;
+        board.hash ^= board.h_en_passent[board.blackPawns[idx3].square % 8];
     }
     
     if(board.board[targetsquare] == 'P' && targetsquare / 8 == 0){
@@ -1980,6 +2071,8 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             Queen queen;
             queen.square = targetsquare;
             queen.color = true;
+            board.hash ^= board.h_pieces[8][targetsquare];
+            board.hash ^= board.h_pieces[0][targetsquare];
             board.whiteQueen.push_back(queen);
             break;
             }
@@ -1987,6 +2080,8 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             Rook rook;
             rook.square = targetsquare;
             rook.color = true;
+            board.hash ^= board.h_pieces[6][targetsquare];
+            board.hash ^= board.h_pieces[0][targetsquare];
             board.whiterook.push_back(rook);
             break;
             }
@@ -1994,6 +2089,8 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             Bishop bishop;
             bishop.square = targetsquare;
             bishop.color = true;
+            board.hash ^= board.h_pieces[4][targetsquare];
+            board.hash ^= board.h_pieces[0][targetsquare];
             board.whiteBishop.push_back(bishop);
             break;
             }
@@ -2001,6 +2098,8 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             Knight knight;
             knight.square = targetsquare;
             knight.color = true;
+            board.hash ^= board.h_pieces[2][targetsquare];
+            board.hash ^= board.h_pieces[0][targetsquare];
             board.whiteKnight.push_back(knight);
             break;
             }
@@ -2014,6 +2113,8 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             Queen queen;
             queen.square = targetsquare;
             queen.color = false;
+            board.hash ^= board.h_pieces[9][targetsquare];
+            board.hash ^= board.h_pieces[1][targetsquare];
             board.blackQueen.push_back(queen);
             break;
             }
@@ -2021,6 +2122,8 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             Rook rook;
             rook.square = targetsquare;
             rook.color = false;
+            board.hash ^= board.h_pieces[7][targetsquare];
+            board.hash ^= board.h_pieces[1][targetsquare];
             board.blackrook.push_back(rook);
             break;
             }
@@ -2028,6 +2131,8 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             Bishop bishop;
             bishop.square = targetsquare;
             bishop.color = false;
+            board.hash ^= board.h_pieces[5][targetsquare];
+            board.hash ^= board.h_pieces[1][targetsquare];
             board.blackBishop.push_back(bishop);
             break;
             }
@@ -2035,6 +2140,8 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
             Knight knight;
             knight.square = targetsquare;
             knight.color = false;
+            board.hash ^= board.h_pieces[3][targetsquare];
+            board.hash ^= board.h_pieces[1][targetsquare];
             board.blackKnight.push_back(knight);
             break;
             }
@@ -2044,6 +2151,7 @@ void domove(Board &board, int startingsquare, int targetsquare, char promotion){
 
     if(board.turn){
         board.turn = false;
+        board.hash ^= board.h_turn;
     }
     else{
         board.turn = true;
@@ -2526,10 +2634,12 @@ int positionfinder(std::vector<std::string> positions, std::string wanted_positi
 
 double Tree(Board &board, int depth, int &positions, const int &constant_depth, double alpha, double beta){ //Die Grundidee ist aus Claude, da ich komplett verzweifelt war
 
+    if(hashcheck(board, hashing(board))){
+        return board.transposition_table[board.hash_index].eval;
+    }
     double maxEval;
     double minEval;
-
-    if(depth <= 0 && (((board.Previous_moves.size() > 0 && !board.Previous_moves.back().is_forcing) || depth <= -4) && ((board.Previous_moves.size() > 1  && !board.Previous_moves[board.Previous_moves.size() - 2].was_check)))){
+    if(depth <= 0 && (((board.Previous_moves.size() > 0 && !board.Previous_moves.back().is_forcing) || depth <= -4) && (depth <= -6 || (board.Previous_moves.size() > 1  && !board.Previous_moves[board.Previous_moves.size() - 2].was_check)))){
         positions++;
         return evaluation(board);
     }
@@ -2789,6 +2899,11 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
             domove(board, starts[i], targets[i], '0');
             double tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
             undomove(board);
+            zobrist tempzob;
+            tempzob.hash = hashing(board);
+            tempzob.depth = depth;
+            tempzob.eval = tempeval;
+            board.transposition_table.push_back(tempzob);
 
             if(board.turn){
                 if(depth == constant_depth){
@@ -2929,6 +3044,7 @@ void remember_board(Board &board, int startingsquare, int targetsquare, char pro
 }
 
 void undomove(Board &board){
+    int remember_rights = castling_help(board);
     if(board.Previous_moves.size() != 0){
         if(board.Previous_moves.back().initial_square != -1){
             board.board[board.Previous_moves.back().initial_square] = board.Previous_moves.back().initialsquare;
@@ -2936,133 +3052,192 @@ void undomove(Board &board){
             if(board.Previous_moves.back().currentsquare == 'p'){
                 pawn pawn;
                 pawn.square = board.Previous_moves.back().current_square;
+                board.hash ^= board.h_pieces[1][board.Previous_moves.back().current_square];
                 board.blackPawns.push_back(pawn);
             }
             if(board.Previous_moves.back().currentsquare == 'P'){
                 pawn pawn;
                 pawn.square = board.Previous_moves.back().current_square;
+                board.hash ^= board.h_pieces[0][board.Previous_moves.back().current_square];
                 board.whitePawns.push_back(pawn);
             }
             if(board.Previous_moves.back().currentsquare == 'n'){
                 Knight knight;
                 knight.square = board.Previous_moves.back().current_square;
+                board.hash ^= board.h_pieces[3][board.Previous_moves.back().current_square];
                 board.blackKnight.push_back(knight);
             }
             if(board.Previous_moves.back().currentsquare == 'N'){
                 Knight knight;
                 knight.square = board.Previous_moves.back().current_square;
+                board.hash ^= board.h_pieces[2][board.Previous_moves.back().current_square];
                 board.whiteKnight.push_back(knight);
             }
             if(board.Previous_moves.back().currentsquare == 'b'){
                 Bishop bishop;
                 bishop.square = board.Previous_moves.back().current_square;
+                board.hash ^= board.h_pieces[5][board.Previous_moves.back().current_square];
                 board.blackBishop.push_back(bishop);
             }
             if(board.Previous_moves.back().currentsquare == 'B'){
                 Bishop bishop;
                 bishop.square = board.Previous_moves.back().current_square;
+                board.hash ^= board.h_pieces[4][board.Previous_moves.back().current_square];
                 board.whiteBishop.push_back(bishop);
             }
             if(board.Previous_moves.back().currentsquare == 'r'){
                 Rook rook;
                 rook.square = board.Previous_moves.back().current_square;
+                board.hash ^= board.h_pieces[7][board.Previous_moves.back().current_square];
                 board.blackrook.push_back(rook);
             }
             if(board.Previous_moves.back().currentsquare == 'R'){
                 Rook rook;
                 rook.square = board.Previous_moves.back().current_square;
+                board.hash ^= board.h_pieces[6][board.Previous_moves.back().current_square];
                 board.whiterook.push_back(rook);
             }
             if(board.Previous_moves.back().currentsquare == 'q'){
                 Queen queen;
                 queen.square = board.Previous_moves.back().current_square;
+                board.hash ^= board.h_pieces[9][board.Previous_moves.back().current_square];
                 board.blackQueen.push_back(queen);
             }
             if(board.Previous_moves.back().currentsquare == 'Q'){
                 Queen queen;
                 queen.square = board.Previous_moves.back().current_square;
+                board.hash ^= board.h_pieces[8][board.Previous_moves.back().current_square];
                 board.whiteQueen.push_back(queen);
             }
 
             if(board.Previous_moves.back().initialsquare == 'p' && pawnfinder(board.blackPawns, board.Previous_moves.back().current_square) != -1){
                 board.blackPawns[pawnfinder(board.blackPawns, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[1][board.Previous_moves.back().initial_square];
+                board.hash ^= board.h_pieces[1][board.Previous_moves.back().current_square];
             }
             if(board.Previous_moves.back().initialsquare == 'P' && pawnfinder(board.whitePawns, board.Previous_moves.back().current_square) != -1){
                 board.whitePawns[pawnfinder(board.whitePawns, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[0][board.Previous_moves.back().initial_square];
+                board.hash ^= board.h_pieces[0][board.Previous_moves.back().current_square];
             }
             if(board.Previous_moves.back().initialsquare == 'n' && knightfinder(board.blackKnight, board.Previous_moves.back().current_square) != -1){
                 board.blackKnight[knightfinder(board.blackKnight, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[3][board.Previous_moves.back().initial_square];
+                board.hash ^= board.h_pieces[3][board.Previous_moves.back().current_square];
             }
             if(board.Previous_moves.back().initialsquare == 'N' && knightfinder(board.whiteKnight, board.Previous_moves.back().current_square) != -1){
                 board.whiteKnight[knightfinder(board.whiteKnight, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[2][board.Previous_moves.back().initial_square];
+                board.hash ^= board.h_pieces[2][board.Previous_moves.back().current_square];
             }
             if(board.Previous_moves.back().initialsquare == 'b' && bishopfinder(board.blackBishop, board.Previous_moves.back().current_square) != -1){
                 board.blackBishop[bishopfinder(board.blackBishop, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[5][board.Previous_moves.back().initial_square];
+                board.hash ^= board.h_pieces[5][board.Previous_moves.back().current_square];
             }
             if(board.Previous_moves.back().initialsquare == 'B' && bishopfinder(board.whiteBishop, board.Previous_moves.back().current_square) != -1){
                 board.whiteBishop[bishopfinder(board.whiteBishop, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[4][board.Previous_moves.back().initial_square];
+                board.hash ^= board.h_pieces[4][board.Previous_moves.back().current_square];
             }
             if(board.Previous_moves.back().initialsquare == 'r' && rookfinder(board.blackrook, board.Previous_moves.back().current_square) != -1){
                 board.blackrook[rookfinder(board.blackrook, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[7][board.Previous_moves.back().initial_square];
+                board.hash ^= board.h_pieces[7][board.Previous_moves.back().current_square];
             }
+            std::cout << "test: " << board.hash << '\n';
             if(board.Previous_moves.back().initialsquare == 'R' && rookfinder(board.whiterook, board.Previous_moves.back().current_square) != -1){
                 board.whiterook[rookfinder(board.whiterook, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[6][board.Previous_moves.back().initial_square];
+                board.hash ^= board.h_pieces[6][board.Previous_moves.back().current_square];
             }
             if(board.Previous_moves.back().initialsquare == 'q' && queenfinder(board.blackQueen, board.Previous_moves.back().current_square) != -1){
                 board.blackQueen[queenfinder(board.blackQueen, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[9][board.Previous_moves.back().initial_square];
+                board.hash ^= board.h_pieces[9][board.Previous_moves.back().current_square];
             }
             if(board.Previous_moves.back().initialsquare == 'Q' && queenfinder(board.whiteQueen, board.Previous_moves.back().current_square) != -1){
                 board.whiteQueen[queenfinder(board.whiteQueen, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[8][board.Previous_moves.back().initial_square];
+                board.hash ^= board.h_pieces[8][board.Previous_moves.back().current_square];
             }
             if(board.Previous_moves.back().initialsquare == 'k'){
                 board.blackKing[0].square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[11][board.Previous_moves.back().initial_square];
+                board.hash ^= board.h_pieces[11][board.Previous_moves.back().current_square];
             }
             if(board.Previous_moves.back().initialsquare == 'K'){
                 board.whiteKing[0].square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[10][board.Previous_moves.back().initial_square];
+                board.hash ^= board.h_pieces[10][board.Previous_moves.back().current_square];
             }    
 
             if(rookfinder(board.whiterook, 59) != -1 && board.Previous_moves.back().initialsquare == 'K' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == 2){
                 board.board[59] = '0';
                 board.board[56] = 'R';
                 board.whiterook[rookfinder(board.whiterook, 59)].square = 56;
+                board.hash ^= board.h_pieces[6][59];
+                board.hash ^= board.h_pieces[6][56];
             }
             if(rookfinder(board.whiterook, 61)!= -1 && board.Previous_moves.back().initialsquare == 'K' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == -2){
                 board.board[61] = '0';
                 board.board[63] = 'R';
                 board.whiterook[rookfinder(board.whiterook, 61)].square = 63;
+                board.hash ^= board.h_pieces[6][61];
+                board.hash ^= board.h_pieces[6][63];
             }
             if(rookfinder(board.blackrook, 3) != -1 && board.Previous_moves.back().initialsquare == 'k' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == 2){
                 board.board[3] = '0';
                 board.board[0] = 'r';
                 board.blackrook[rookfinder(board.blackrook, 3)].square = 0;
+                board.hash ^= board.h_pieces[7][3];
+                board.hash ^= board.h_pieces[7][0];
             }
             if(rookfinder(board.blackrook, 5) != -1 && board.Previous_moves.back().initialsquare == 'k' && board.Previous_moves.back().initial_square - board.Previous_moves.back().current_square == -2){
                 board.board[5] = '0';
                 board.board[7] = 'r';
                 board.blackrook[rookfinder(board.blackrook, 5)].square = 7;
+                board.hash ^= board.h_pieces[7][5];
+                board.hash ^= board.h_pieces[7][7];
             }
+
+            board.hash ^= board.h_castling[remember_rights];
+            board.hash ^= board.h_castling[castling_help(board)];
+
             for(pawn &Pawn : board.whitePawns){
-                Pawn.en_passent_able = false;
+                if(Pawn.en_passent_able){
+                    board.hash ^= board.h_en_passent[Pawn.square % 8];
+                    Pawn.en_passent_able = false;
+                }
             }
             for(pawn &Pawn : board.blackPawns){
-                Pawn.en_passent_able = false;
+                if(Pawn.en_passent_able){
+                    board.hash ^= board.h_en_passent[Pawn.square % 8];
+                    Pawn.en_passent_able = false;
+                }
             }
             if(board.Previous_moves.back().was_en_passent){
                 if(!board.turn){
                     pawn pawn;
                     pawn.square = board.Previous_moves.back().initial_square - (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8);
+                    int tempnum = pawn.square;
+                    board.hash ^= board.h_pieces[1][pawn.square];
                     board.blackPawns.push_back(pawn);
                     board.board[board.Previous_moves.back().initial_square - (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8)] = 'p';
                     if(pawnfinder(board.blackPawns, board.Previous_moves.back().initial_square - (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8)) != -1){
+                        board.hash ^= board.h_en_passent[tempnum];
                         board.blackPawns[pawnfinder(board.blackPawns, board.Previous_moves.back().initial_square - (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8))].en_passent_able = true;
                     }
                 }
                 if(board.turn){
                     pawn pawn;
                     pawn.square = board.Previous_moves.back().initial_square + (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8);
+                    board.hash ^= board.h_pieces[0][pawn.square];
+                    int tempnum = pawn.square;
                     board.whitePawns.push_back(pawn);
                     board.board[board.Previous_moves.back().initial_square + (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8)] = 'P';
                     if(pawnfinder(board.whitePawns, board.Previous_moves.back().initial_square + (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8)) != -1){
+                        board.hash ^= board.h_en_passent[tempnum];
                         board.whitePawns[pawnfinder(board.whitePawns, board.Previous_moves.back().initial_square + (abs(board.Previous_moves.back().current_square - board.Previous_moves.back().initial_square) - 8))].en_passent_able = true;
                     }
                 }
@@ -3073,51 +3248,64 @@ void undomove(Board &board){
             }
             else{
                 board.turn = true;
+                board.hash ^= board.h_turn;
             }
         }
         if(board.Previous_moves.back().was_promotion){
             switch(board.Previous_moves.back().previous_promotion){
                 case 'Q':
                 board.whiteQueen.erase(board.whiteQueen.begin() + queenfinder(board.whiteQueen, board.Previous_moves.back().current_square));
+                board.hash ^= board.h_pieces[8][board.Previous_moves.back().current_square];
                 break;
                 case 'q':
                 board.blackQueen.erase(board.blackQueen.begin() + queenfinder(board.blackQueen, board.Previous_moves.back().current_square));
+                board.hash ^= board.h_pieces[9][board.Previous_moves.back().current_square];
                 break;
                 case 'R':
                 board.whiterook.erase(board.whiterook.begin() + rookfinder(board.whiterook, board.Previous_moves.back().current_square));
+                board.hash ^= board.h_pieces[6][board.Previous_moves.back().current_square];
                 break;
                 case 'r':
                 board.blackrook.erase(board.blackrook.begin() + rookfinder(board.blackrook, board.Previous_moves.back().current_square));
+                board.hash ^= board.h_pieces[7][board.Previous_moves.back().current_square];
                 break;
                 case 'B':
                 board.whiteBishop.erase(board.whiteBishop.begin() + bishopfinder(board.whiteBishop, board.Previous_moves.back().current_square));
+                board.hash ^= board.h_pieces[4][board.Previous_moves.back().current_square];
                 break;
                 case 'b':
                 board.blackBishop.erase(board.blackBishop.begin() + bishopfinder(board.blackBishop, board.Previous_moves.back().current_square));
+                board.hash ^= board.h_pieces[5][board.Previous_moves.back().current_square];
                 break;
                 case 'N':
                 board.whiteKnight.erase(board.whiteKnight.begin() + knightfinder(board.whiteKnight, board.Previous_moves.back().current_square));
+                board.hash ^= board.h_pieces[2][board.Previous_moves.back().current_square];
                 break;
                 case 'n':
                 board.blackKnight.erase(board.blackKnight.begin() + knightfinder(board.blackKnight, board.Previous_moves.back().current_square));
+                board.hash ^= board.h_pieces[3][board.Previous_moves.back().current_square];
                 break;
             }
             if(board.turn){
                 pawn Pawn;
                 Pawn.square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[0][board.Previous_moves.back().initial_square];
                 board.whitePawns.push_back(Pawn);
             }
             if(!board.turn){
                 pawn Pawn;
                 Pawn.square = board.Previous_moves.back().initial_square;
+                board.hash ^= board.h_pieces[1][board.Previous_moves.back().initial_square];
                 board.blackPawns.push_back(Pawn);
             }
         }
         if(board.Previous_moves.back().en_passent_able_square != -1 && pawnfinder(board.whitePawns, board.Previous_moves.back().en_passent_able_square) != -1){
             board.whitePawns[pawnfinder(board.whitePawns, board.Previous_moves.back().en_passent_able_square)].en_passent_able = true;
+            board.hash ^= board.h_en_passent[board.whitePawns[pawnfinder(board.whitePawns, board.Previous_moves.back().en_passent_able_square)].square % 8];
         }
         if(board.Previous_moves.back().en_passent_able_square != -1 && pawnfinder(board.blackPawns, board.Previous_moves.back().en_passent_able_square) != -1){
             board.blackPawns[pawnfinder(board.blackPawns, board.Previous_moves.back().en_passent_able_square)].en_passent_able = true;
+            board.hash ^= board.h_en_passent[board.blackPawns[pawnfinder(board.blackPawns, board.Previous_moves.back().en_passent_able_square)].square % 8];
         }
         if(board.Previous_moves.back().black_kingside && rookfinder(board.blackrook, 7) != -1){
             board.blackKing[0].hasmoved = false;
@@ -3376,7 +3564,7 @@ double evaluation(Board &board){
                 }
             }
         if(pawn.square == 27 || pawn.square == 28 || pawn.square == 35 || pawn.square == 36){
-            eval += 1.2*piececounter(board.board) / 14;
+            eval += piececounter(board.board) / 14;
         }
         for(int i = 0; i < 64; i++){
             if(pawn.legal_destinations[i] == '1'){
@@ -3402,7 +3590,7 @@ double evaluation(Board &board){
                 }
             }
         if(pawn.square == 27 || pawn.square == 28 || pawn.square == 35 || pawn.square == 36){
-            eval -= 1.2*piececounter(board.board) / 14;
+            eval -= piececounter(board.board) / 14;
         }
         for(int i = 0; i < 64; i++){
             if(pawn.legal_destinations[i] == '1'){
@@ -3472,8 +3660,6 @@ double evaluation(Board &board){
 void random_Play(Board &board){
     int random;
     int random_2;
-
-    srand(time(0));
 
     legal_moves(board);
     actual_legal_moves(board);
@@ -3671,7 +3857,7 @@ void cycle(Board &board, int depth){
         if(!board.turn && tempeval == -1000){
             break;
         }
-
+        board.transposition_table.clear();
     } 
 }
 
@@ -4230,4 +4416,122 @@ bool only_king(Board &board, int square, bool color){
     }
     return false;
 
+}
+
+uint64_t hashing(Board &board){
+    //0 = white Pawn
+    //1 = black Pawn
+    //2 = whiteKnight
+    //3 = blackKnight
+    //usw...
+    int castle_helper = 0;
+    //Q = 1
+    //K = 2
+    //q = 4
+    //k = 8
+    uint64_t hash = 0;
+    for(pawn Pawn : board.whitePawns){
+        hash ^= board.h_pieces[0][Pawn.square];
+        if(Pawn.en_passent_able){
+            hash ^= board.h_en_passent[Pawn.square % 8];
+        }
+    }
+    for(pawn Pawn : board.blackPawns){
+        hash ^= board.h_pieces[1][Pawn.square];
+        if(Pawn.en_passent_able){
+            hash ^= board.h_en_passent[Pawn.square % 8];
+        }
+    }
+    for(Knight knight : board.whiteKnight){
+        hash ^= board.h_pieces[2][knight.square];
+    }
+    for(Knight knight : board.blackKnight){
+        hash ^= board.h_pieces[3][knight.square];
+    }
+    for(Bishop bishop : board.whiteBishop){
+        hash ^= board.h_pieces[4][bishop.square];
+    }
+    for(Bishop bishop : board.blackBishop){
+        hash ^= board.h_pieces[5][bishop.square];
+    }
+    for(Rook rook : board.whiterook){
+        hash ^= board.h_pieces[6][rook.square];
+    }
+    for(Rook rook : board.blackrook){
+        hash ^= board.h_pieces[7][rook.square];
+    }
+    for(Queen queen : board.whiteQueen){
+        hash ^= board.h_pieces[8][queen.square];
+    }
+    for(Queen queen : board.blackQueen){
+        hash ^= board.h_pieces[9][queen.square];
+    }
+    hash ^= board.h_pieces[10][board.whiteKing[0].square];
+    hash ^= board.h_pieces[11][board.blackKing[0].square];
+
+    if(board.turn){
+        hash ^= board.h_turn;
+    }
+
+    if(!board.whiteKing[0].hasmoved && rookfinder(board.whiterook, 56) != -1 && !board.whiterook[rookfinder(board.whiterook, 56)].hasmoved){
+        castle_helper += 1;
+    }
+    if(!board.whiteKing[0].hasmoved && rookfinder(board.whiterook, 63) != -1 && !board.whiterook[rookfinder(board.whiterook, 63)].hasmoved){
+        castle_helper += 2;
+    }
+    if(!board.blackKing[0].hasmoved && rookfinder(board.blackrook, 0) != -1 && !board.blackrook[rookfinder(board.blackrook, 0)].hasmoved){
+        castle_helper += 4;
+    }
+    if(!board.blackKing[0].hasmoved && rookfinder(board.blackrook, 7) != -1 && !board.blackrook[rookfinder(board.blackrook, 7)].hasmoved){
+        castle_helper += 8;
+    }
+
+    hash ^= board.h_castling[castle_helper];
+
+    return hash;
+}
+
+void assign_random_key(uint64_t pieces[12][64], uint64_t castling_rigts[16], uint64_t en_passent[8], uint64_t turn){ //Hilfe aus: https://chatgpt.com/share/6a9d665b-79f8-83eb-bcf0-d3a5ba931e96
+    
+    std::mt19937_64 rng(1340069);
+    for(int piece = 0; piece < 12; piece++) {
+        for(int square = 0; square < 64; square++) {
+            pieces[piece][square] = rng();
+        }
+    }
+    turn = rng();
+    for(int i = 0; i < 16; i++){
+        castling_rigts[i] = rng();
+    }
+    for(int i = 0; i < 8; i++){
+        en_passent[i] = rng();
+    }
+
+}
+
+bool hashcheck(Board &board, uint64_t temp_hash){
+    for(int i = 0; i < board.transposition_table.size(); i++){
+        if(board.transposition_table[i].hash == temp_hash){
+            board.hash_index = i;
+            return true;
+        }
+    }
+    return false;
+}
+
+int castling_help(Board &board){
+    int castle_helper = 0;
+    if(!board.whiteKing[0].hasmoved && rookfinder(board.whiterook, 56) != -1 && !board.whiterook[rookfinder(board.whiterook, 56)].hasmoved){
+        castle_helper += 1;
+    }
+    if(!board.whiteKing[0].hasmoved && rookfinder(board.whiterook, 63) != -1 && !board.whiterook[rookfinder(board.whiterook, 63)].hasmoved){
+        castle_helper += 2;
+    }
+    if(!board.blackKing[0].hasmoved && rookfinder(board.blackrook, 0) != -1 && !board.blackrook[rookfinder(board.blackrook, 0)].hasmoved){
+        castle_helper += 4;
+    }
+    if(!board.blackKing[0].hasmoved && rookfinder(board.blackrook, 7) != -1 && !board.blackrook[rookfinder(board.blackrook, 7)].hasmoved){
+        castle_helper += 8;
+    }
+    return castle_helper;
 }
