@@ -93,6 +93,7 @@ class zobrist{
     uint64_t hash;
     double eval;
     int depth;
+    int index;
 };
 
 class Board{ //Idee aus ChatGPT
@@ -147,6 +148,7 @@ class Board{ //Idee aus ChatGPT
     std::vector<zobrist> transposition_table;
     int hash_index;
     uint64_t hash;
+    int trans_index;
 
     void printboard(std::vector<char> board){
         for(int i = 0; i < 64; i++){
@@ -222,7 +224,7 @@ bool can_interpose(Board &board, int startingsquare, int targetsquare, bool colo
 bool only_king(Board &board, int square, bool color);
 uint64_t hashing(Board &board);
 void assign_random_key(uint64_t pieces[12][64], uint64_t castling_rigts[16], uint64_t en_passent[8], uint64_t turn); 
-bool hashcheck(Board &board, uint64_t temp_hash);
+bool hashcheck(Board &board, int depth);
 int castling_help(Board &board);
 
 
@@ -230,7 +232,7 @@ int castling_help(Board &board);
 
 
 int main(){
-    std::string FEN = "1r4k1/P6p/8/8/1R6/8/5PP1/6K1 w - - 5 40"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "r2qrbk1/pppb1ppp/2np1n2/1B6/Q3PB2/2N2N2/PPP2PPP/2KR3R w - - 0 1"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -293,19 +295,6 @@ int main(){
         black_expansion(board);         
     }
     board.hash = hashing(board);
-
-    std::cout << board.hash << '\n';
-    domove(board, 8, 0, 'B');
-    std::cout << board.hash << '\n';
-    std::cout << "actual hash: " << hashing(board) << '\n';
-    undomove(board);
-    std::cout << board.hash << '\n';
-    std::cout << "actualhash: " << hashing(board) << '\n';
-
-
-    /*
-
-
     
 
     while(board.legal_target_squares.size() != 0 && !breaker){
@@ -2633,10 +2622,12 @@ int positionfinder(std::vector<std::string> positions, std::string wanted_positi
 }
 
 double Tree(Board &board, int depth, int &positions, const int &constant_depth, double alpha, double beta){ //Die Grundidee ist aus Claude, da ich komplett verzweifelt war
-
-    if(hashcheck(board, hashing(board))){
-        return board.transposition_table[board.hash_index].eval;
+    /*
+    if(board.transposition_table.size() != 0 && hashcheck(board, depth)){
+        return board.transposition_table[board.trans_index].eval;
     }
+    */
+    
     double maxEval;
     double minEval;
     if(depth <= 0 && (((board.Previous_moves.size() > 0 && !board.Previous_moves.back().is_forcing) || depth <= -4) && (depth <= -6 || (board.Previous_moves.size() > 1  && !board.Previous_moves[board.Previous_moves.size() - 2].was_check)))){
@@ -2899,11 +2890,20 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
             domove(board, starts[i], targets[i], '0');
             double tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
             undomove(board);
-            zobrist tempzob;
-            tempzob.hash = hashing(board);
-            tempzob.depth = depth;
-            tempzob.eval = tempeval;
-            board.transposition_table.push_back(tempzob);
+            if(depth == 0){
+                zobrist tempzob;
+                tempzob.hash = board.hash;
+                tempzob.depth = depth;
+                tempzob.eval = tempeval;
+                if(board.transposition_table.size() != 0){
+                    tempzob.index = board.hash % board.transposition_table.size();
+                }
+                else{
+                    tempzob.index = 0;
+                }
+                board.transposition_table.push_back(tempzob);
+            }
+
 
             if(board.turn){
                 if(depth == constant_depth){
@@ -3145,7 +3145,6 @@ void undomove(Board &board){
                 board.hash ^= board.h_pieces[7][board.Previous_moves.back().initial_square];
                 board.hash ^= board.h_pieces[7][board.Previous_moves.back().current_square];
             }
-            std::cout << "test: " << board.hash << '\n';
             if(board.Previous_moves.back().initialsquare == 'R' && rookfinder(board.whiterook, board.Previous_moves.back().current_square) != -1){
                 board.whiterook[rookfinder(board.whiterook, board.Previous_moves.back().current_square)].square = board.Previous_moves.back().initial_square;
                 board.hash ^= board.h_pieces[6][board.Previous_moves.back().initial_square];
@@ -3923,7 +3922,6 @@ bool is_mate_threatened(Board &board, bool bywhite){ //Die Funktion schaut, ob e
                             if(counter == onecounter(board.blackKing[0].legal_moves) && counter != 0){
                                 return true;
                             }
-                            std::cout << "B" << '\n';
                         }
                     }
                     counter = 0;
@@ -4509,13 +4507,16 @@ void assign_random_key(uint64_t pieces[12][64], uint64_t castling_rigts[16], uin
 
 }
 
-bool hashcheck(Board &board, uint64_t temp_hash){
-    for(int i = 0; i < board.transposition_table.size(); i++){
-        if(board.transposition_table[i].hash == temp_hash){
-            board.hash_index = i;
+bool hashcheck(Board &board, int depth){
+    int tempindex = board.hash % board.transposition_table.size();
+    zobrist tempzob = board.transposition_table[tempindex];
+    if(board.hash == board.transposition_table[tempindex].hash){
+        if(board.transposition_table[tempindex].depth > depth){
+            board.trans_index = tempindex;
             return true;
         }
     }
+    
     return false;
 }
 
