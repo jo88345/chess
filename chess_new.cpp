@@ -149,6 +149,7 @@ class Board{ //Idee aus ChatGPT
     int hash_index;
     uint64_t hash;
     int trans_index;
+    std::vector<std::string> game;
 
     void printboard(std::vector<char> board){
         for(int i = 0; i < 64; i++){
@@ -215,7 +216,7 @@ double difference(Board &board, int startingsquare, int targetsquare);
 void domove_temp(std::vector<char> &board, int startingsquare, int targetsquare, char promotion);
 bool square_attacked(std::vector<char> &b, int square, bool byWhite);
 void cycle(Board &board, int depth);
-int piececounter (std::vector<char> &board);
+double piececounter (std::vector<char> &board);
 int distance(int start, int target);
 int distance(int start, int target);
 void weak_pawns(Board &board);
@@ -226,13 +227,14 @@ uint64_t hashing(Board &board);
 void assign_random_key(uint64_t pieces[12][64], uint64_t castling_rigts[16], uint64_t en_passent[8], uint64_t turn); 
 bool hashcheck(Board &board, int depth);
 int castling_help(Board &board);
+bool has_repeated(std::vector<std::string> &game);
 
 
 
 
 
 int main(){
-    std::string FEN = "r2qrbk1/pppb1ppp/2np1n2/1B6/Q3PB2/2N2N2/PPP2PPP/2KR3R w - - 0 1"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -295,9 +297,10 @@ int main(){
         black_expansion(board);         
     }
     board.hash = hashing(board);
-    
 
     while(board.legal_target_squares.size() != 0 && !breaker){
+        auto start_t = std::chrono::high_resolution_clock::now();
+        board.previous_boards.push_back(position_to_FEN(board));
         if(board.turn){
             hashing(board);
             cycle(board, 4);
@@ -309,9 +312,20 @@ int main(){
             }
             std::cout << board.legal_target_squares.size() << '\n';
             std::cout << board.move << '\n';
+            if(has_repeated(board.previous_boards)){
+                std::cout << "draw" << '\n';
+                breaker = true;
+            }
         }
+        auto end = std::chrono::high_resolution_clock::now();
+
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            end - start_t
+        );
+        std::cout << "Time: " << duration.count() << " ms\n";
 
         board.printboard(board.board);  
+        board.previous_boards.push_back(position_to_FEN(board));
         if(!board.turn){
             std::cout << "Startingsquare: " << '\n';
             std::cin >> start;
@@ -325,17 +339,10 @@ int main(){
             else{
                 domove(board, square_to_index(start[0], start[1]), square_to_index(target[0], target[1]), '0');
             }
-            for(int i = 0; i < board.previous_boards.size(); i++){ //3-fach Stellungswiederholungs check
-                for(int j = 0; j < board.previous_boards.size(); j++){
-                    if(board.previous_boards[j] == board.previous_boards[i] && i != j){
-                        rep++;
-                    if(rep == 3){
-                        std::cout << "draw" << '\n';
-                        breaker = true;
-                    }
-                }
+            if(has_repeated(board.previous_boards)){
+                std::cout << "draw" << '\n';
+                breaker = true;
             }
-        }
     }
 
         
@@ -2622,11 +2629,10 @@ int positionfinder(std::vector<std::string> positions, std::string wanted_positi
 }
 
 double Tree(Board &board, int depth, int &positions, const int &constant_depth, double alpha, double beta){ //Die Grundidee ist aus Claude, da ich komplett verzweifelt war
-    /*
+    
     if(board.transposition_table.size() != 0 && hashcheck(board, depth)){
         return board.transposition_table[board.trans_index].eval;
     }
-    */
     
     double maxEval;
     double minEval;
@@ -2696,6 +2702,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 std::cout << board.previous_move << '\n';
             }
             domove(board, starts[i], targets[i], 'B');
+            board.previous_boards.push_back(position_to_FEN(board));
             double tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
             undomove(board);
             if(board.breaker){
@@ -2717,6 +2724,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 break;
             }
             domove(board, starts[i], targets[i], 'N');
+            board.previous_boards.push_back(position_to_FEN(board));
             tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
             undomove(board);
             if(board.breaker){
@@ -2739,6 +2747,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 break;
             }
             domove(board, starts[i], targets[i], 'R');
+            board.previous_boards.push_back(position_to_FEN(board));
             tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
             undomove(board);
             if(board.breaker){
@@ -2761,6 +2770,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 break;
             }
             domove(board, starts[i], targets[i], 'Q');
+            board.previous_boards.push_back(position_to_FEN(board));
             tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
             undomove(board);
             if(board.turn){
@@ -2800,6 +2810,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 std::cout << board.previous_move << '\n';
             }
             domove(board, starts[i], targets[i], 'b');
+            board.previous_boards.push_back(position_to_FEN(board));
             double tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
             undomove(board);
             if(board.breaker){
@@ -2822,6 +2833,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 break;
             }
             domove(board, starts[i], targets[i], 'n');
+            board.previous_boards.push_back(position_to_FEN(board));
             tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
             undomove(board);
             if(board.breaker){
@@ -2844,6 +2856,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 break;
             }
             domove(board, starts[i], targets[i], 'r');
+            board.previous_boards.push_back(position_to_FEN(board));
             tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
             undomove(board);
             if(board.breaker){
@@ -2866,6 +2879,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 break;
             }
             domove(board, starts[i], targets[i], 'q');
+            board.previous_boards.push_back(position_to_FEN(board));
             tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
             undomove(board);
             
@@ -2888,6 +2902,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
         
         else{
             domove(board, starts[i], targets[i], '0');
+            board.previous_boards.push_back(position_to_FEN(board));
             double tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
             undomove(board);
             if(depth == 0){
@@ -2961,9 +2976,6 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
         }
     }
 
-    if(board.previous_boards.size() != 0){
-        board.previous_boards.pop_back();
-    }
     if(board.turn){
         return maxEval;
     }
@@ -3323,6 +3335,10 @@ void undomove(Board &board){
             board.whiterook[rookfinder(board.whiterook, 56)].hasmoved = false;
         }
         board.Previous_moves.pop_back();
+        if(board.previous_boards.size() != 0){
+            board.previous_boards.pop_back();
+        }
+        
         legal_moves(board);
     }
 }
@@ -3345,18 +3361,11 @@ double evaluation(Board &board){
     }
     weak_pawns(board);
     double eval = 0;
-    /*
-    for(int i = 0; i < board.Previous_moves.back().pre_pos.size(); i++){ //3-fach Stellungswiederholungs check
-        for(int j = 0; j < board.Previous_moves.back().pre_pos.size(); j++){
-            if(board.Previous_moves.back().pre_pos[j] == board.Previous_moves.back().pre_pos[i] && i != j){
-                rep++;
-                if(rep == 3){
-                    return 0;
-                }
-            }
-        }
+    
+
+    if(has_repeated(board.previous_boards)){
+        return 0;
     }
-    */
     
     if(board.legal_starting_squares.size() == 0){
         if(iswhiteincheck(board)){
@@ -3553,55 +3562,56 @@ double evaluation(Board &board){
             }
         }
     }
-    for(pawn &pawn : board.whitePawns){
+    for(pawn &Pawn : board.whitePawns){
         counter++;
+        
         eval += 1;
-        for(int j = pawn.square / 8; j < 8; j++){
-                if(board.board[j*8 + pawn.square % 8] == 'P' || (pawn.square % 8 != 7 && board.board[j*8 + 1 + pawn.square % 8] == 'P') || (pawn.square % 8 != 0 && board.board[j*8 - 1 + pawn.square % 8] == 'P')){
-                    pawn.ispassed = false; 
+        for(int j = Pawn.square / 8; j < 8; j++){
+                if(board.board[j*8 + Pawn.square % 8] == 'p' || (Pawn.square % 8 != 7 && board.board[j*8 + 1 + Pawn.square % 8] == 'p') || (Pawn.square % 8 != 0 && board.board[j*8 - 1 + Pawn.square % 8] == 'p')){
+                    Pawn.ispassed = false; 
                     break;
                 }
             }
-        if(pawn.square == 27 || pawn.square == 28 || pawn.square == 35 || pawn.square == 36){
+        if(Pawn.square == 27 || Pawn.square == 28 || Pawn.square == 35 || Pawn.square == 36){
             eval += piececounter(board.board) / 14;
         }
         for(int i = 0; i < 64; i++){
-            if(pawn.legal_destinations[i] == '1'){
-                if(!isblackincheck(board) && check_check_black(board, pawn.square, i)){
+            if(Pawn.legal_destinations[i] == '1'){
+                if(!isblackincheck(board) && check_check_black(board, Pawn.square, i)){
                     eval += 0.1;
                 }
             }
         }
-        if(pawn.ispassed){
-            eval += 0.5*((8-(pawn.square / 8)) * (8-(pawn.square / 8))) * (1/(piececounter(board.board) + 1));
+        if(Pawn.ispassed){
+            eval += 0.1*((8-(Pawn.square / 8)) * (8-(Pawn.square / 8))) * (1/(piececounter(board.board) + 1));
         }
-        if(pawn.is_weak){
+        if(Pawn.is_weak){
             eval -= 0.2;
         }
     }
-    for(pawn &pawn : board.blackPawns){
+    for(pawn &Pawn : board.blackPawns){
         counter++;
         eval -= 1;
-        for(int j = pawn.square / 8; j < 8; j++){
-                if(board.board[j*8 - pawn.square % 8] == 'p' || (pawn.square % 8 != 7 && board.board[j*8 - 1 - pawn.square % 8] == 'p') || (pawn.square % 8 != 0 && board.board[j*8 - 1 - pawn.square % 8] == 'p')){
-                    pawn.ispassed = false; 
+        for(int j = Pawn.square / 8; j < 8; j++){
+                if(board.board[j*8 - Pawn.square % 8] == 'P' || (Pawn.square % 8 != 7 && board.board[j*8 - 1 - Pawn.square % 8] == 'P') || (Pawn.square % 8 != 0 && board.board[j*8 - 1 - Pawn.square % 8] == 'P')){
+                    Pawn.ispassed = false; 
                     break;
                 }
             }
-        if(pawn.square == 27 || pawn.square == 28 || pawn.square == 35 || pawn.square == 36){
+        if(Pawn.square == 27 || Pawn.square == 28 || Pawn.square == 35 || Pawn.square == 36){
             eval -= piececounter(board.board) / 14;
         }
         for(int i = 0; i < 64; i++){
-            if(pawn.legal_destinations[i] == '1'){
-                if(!iswhiteincheck(board) && check_check_white(board, pawn.square, i)){
+            if(Pawn.legal_destinations[i] == '1'){
+                if(!iswhiteincheck(board) && check_check_white(board, Pawn.square, i)){
                     eval -= 0.1;
                 }
             }
         }
-        if(pawn.ispassed){
-            eval -= 0.5*((pawn.square / 8)*(pawn.square / 8)) * (1/(piececounter(board.board) + 1));
+        if(Pawn.ispassed){
+            eval -= 0.1*((Pawn.square / 8)*(Pawn.square / 8)) * (1/(piececounter(board.board) + 1));
         }
-        if(pawn.is_weak){
+        if(Pawn.is_weak){
             eval += 0.2;
         }
     }
@@ -3615,7 +3625,7 @@ double evaluation(Board &board){
         eval -= onecounter(board.whiteKing[0].legal_moves) / 8;
         eval += onecounter(board.blackKing[0].legal_moves) / 8;
     }
-    if(piececounter(board.board) <= 2 && board.whiteQueen.size() == 0){ //maximiert Königsmobilität im Endspiel
+    if(piececounter(board.board) <= 4 && board.whiteQueen.size() == 0){ //Endspiel Funktion. Das Dilemma hier ist die Aktivierung. Zu früh und die Engine macht Schwachsinn. Zu Spät und die Engine kann keine Endspiele spielen. 
         eval -= onecounter(board.blackKing[0].legal_destinations) / 8;
         eval -= 4/(abs(board.blackKing[0].square / 8 - 4)+1);
         for(pawn &Pawn : board.whitePawns){ //sollte die Distanz zwischen König und dem nächsten unverteidigtwn Bauern minimieren.
@@ -3627,10 +3637,10 @@ double evaluation(Board &board){
         }
         eval -= 8/sqrt(dist); 
     }
-    if(piececounter(board.board) <= 2 && board.blackQueen.size() == 0){ //maximiert Königsmobilität im Endspiel
+    if(piececounter(board.board) <= 4 && board.blackQueen.size() == 0){ 
         eval += onecounter(board.whiteKing[0].legal_destinations) / 8;
         eval += 4/(abs(board.whiteKing[0].square / 8 - 4)+2);
-        for(pawn &Pawn : board.blackPawns){ //sollte die Distanz zwischen König und dem nächsten unverteidigtwn Bauern minimieren.
+        for(pawn &Pawn : board.blackPawns){ 
             if(!square_attacked(board.board, Pawn.square, 0)){
                 if(distance(board.whiteKing[0].square, Pawn.square) < dist){
                     dist = distance(board.blackKing[0].square, Pawn.square);
@@ -3860,7 +3870,7 @@ void cycle(Board &board, int depth){
     } 
 }
 
-int piececounter (std::vector<char> &board){
+double piececounter (std::vector<char> &board){ //wichtig für gewisse Operationen, dass piececounter kein int zurückgibt
     int counter = 0;
     for(int i = 0; i < 64; i++){
         if(iswhitepiece(board, i) && board[i] != 'P'){
@@ -4535,4 +4545,21 @@ int castling_help(Board &board){
         castle_helper += 8;
     }
     return castle_helper;
+}
+
+bool has_repeated(std::vector<std::string> &game){//Sucht eine Liste nach dreifach-vorkommenden Elementen ab.
+    int counter = 0;
+    for(int i = 0; i < game.size(); i++){
+        for(int j = i; j < game.size(); j++){
+            if(game[i] == game[j] && i != j){
+                counter++;
+            }
+            if(counter == 2){
+                return true;
+            }
+            //Bedingung für counter == 1, wonach dieses Element nicht mehr abgesucht werden muss, noch machen
+        }
+        counter = 0;
+    }
+    return false;
 }
