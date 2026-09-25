@@ -84,8 +84,7 @@ class Previous_move{
     bool is_forcing = false;
     char previous_promotion;
     double difference;
-    bool was_check = false;
-    
+    bool was_check = false;    
 };
 
 class zobrist{
@@ -150,6 +149,7 @@ class Board{ //Idee aus ChatGPT
     uint64_t hash;
     int trans_index;
     std::vector<std::string> game;
+    int f_counter;
 
     void printboard(std::vector<char> board){
         for(int i = 0; i < 64; i++){
@@ -234,7 +234,7 @@ bool has_repeated(std::vector<std::string> &game);
 
 
 int main(){
-    std::string FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "r1b2rk1/ppb2pp1/7p/3Rp3/4B1P1/qPP2N2/P3QP1P/1K5R w - - 0 20"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -260,8 +260,10 @@ int main(){
     
     
     Board board;
-
+    
     assign_random_key(board.h_pieces, board.h_castling, board.h_en_passent, board.h_turn);
+
+    board.f_counter = 0;
 
 
     board.fillboard(board.board);
@@ -298,12 +300,22 @@ int main(){
     }
     board.hash = hashing(board);
 
+    std::cout << evaluation(board) << '\n';
+
+    /*
+
     while(board.legal_target_squares.size() != 0 && !breaker){
         auto start_t = std::chrono::high_resolution_clock::now();
         board.previous_boards.push_back(position_to_FEN(board));
         if(board.turn){
             hashing(board);
-            cycle(board, 4);
+            cycle(board, 6);
+            if(board.board[square_to_index(board.move[0], board.move[1])] == 'P' || board.board[square_to_index(board.move[0], board.move[1])] == 'p' || board.board[square_to_index(board.move[2], board.move[3])] != '0'){
+                board.f_counter = 0;
+            }
+            else{
+                board.f_counter++;
+            }
             if(board.board[square_to_index(board.move[0], board.move[1])] == 'P' && board.move[3] == '8'){
                 domove(board, square_to_index(board.move[0], board.move[1]), square_to_index(board.move[2], board.move[3]), board.move[4]);
             }
@@ -312,9 +324,14 @@ int main(){
             }
             std::cout << board.legal_target_squares.size() << '\n';
             std::cout << board.move << '\n';
+            std::cout << "50 Move counter: " << board.f_counter << '\n';
             if(has_repeated(board.previous_boards)){
                 std::cout << "draw" << '\n';
                 breaker = true;
+            }
+            if(board.f_counter >= 100){
+                std::cout << "50 move rule" << '\n';
+                break;
             }
         }
         auto end = std::chrono::high_resolution_clock::now();
@@ -331,17 +348,29 @@ int main(){
             std::cin >> start;
             std::cout << "Targetsquare: " << '\n';
             std::cin >> target;
+            if(board.board[square_to_index(start[0], start[1])] == 'P' || board.board[square_to_index(start[0], start[1])] == 'p' || board.board[square_to_index(target[0], target[1])] != '0'){
+                board.f_counter = 0;
+            }
+            else{
+                board.f_counter++;
+            }
             if(board.board[square_to_index(start[0],start[1])] == 'p' && target[1] == '1'){
                 std::cout << "promotion:" << '\n';
                 std::cin >> promotion;
                 domove(board, square_to_index(start[0], start[1]), square_to_index(target[0], target[1]), promotion);
             }
+            
             else{
                 domove(board, square_to_index(start[0], start[1]), square_to_index(target[0], target[1]), '0');
             }
             if(has_repeated(board.previous_boards)){
                 std::cout << "draw" << '\n';
                 breaker = true;
+            }
+            std::cout << "fifty move counter: " << board.f_counter << '\n';
+            if(board.f_counter >= 100){
+                std::cout << "50 move rule" << '\n';
+                break;
             }
     }
 
@@ -2633,6 +2662,8 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
     if(board.transposition_table.size() != 0 && hashcheck(board, depth)){
         return board.transposition_table[board.trans_index].eval;
     }
+
+    int temp_f_counter = board.f_counter;
     
     double maxEval;
     double minEval;
@@ -2660,8 +2691,6 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
     std::vector<int> targets = board.legal_target_squares;
 
     if(starts.size() == 0){ //Das fehlen dieser Linie war eine enorme Fehlerquelle
-        
-
         if(iswhiteincheck(board)){
             if(depth < 0){
                 return -999.99;
@@ -2674,6 +2703,10 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
             }
             return 1000;
         }
+        return 0;
+    }
+
+    if(temp_f_counter >= 100){
         return 0;
     }
 
@@ -2947,6 +2980,15 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
             if(beta <= alpha){
                 break;
             }
+        }
+        if(board.board[starts[i]] == 'P' || board.board[starts[i]] == 'p' || board.board[targets[i] != '0']){
+            temp_f_counter = 0;
+        }
+        else{
+            temp_f_counter++;
+        }
+        if(temp_f_counter >= 100){
+            return 0;
         }
     }
 
@@ -3376,6 +3418,7 @@ double evaluation(Board &board){
         }
         return 0;
     }
+
     for(Knight &knight : board.whiteKnight){
         counter++;
         knight.value = 3;
@@ -3618,6 +3661,11 @@ double evaluation(Board &board){
     if((piececounter(board.board) > 6 && board.whiteQueen.size() != 0 && board.blackQueen.size() != 0) || (piececounter(board.board) > 10 && board.whiteQueen.size() == 0 && board.blackQueen.size() == 0)){
         if(board.whiteKing[0].square == 63 || board.whiteKing[0].square == 62 || board.whiteKing[0].square == 58 || board.whiteKing[0].square == 57 || board.whiteKing[0].square == 56){
             eval += 1;
+            for(int i = 0; i < 3; i++){
+                if(!(board.whiteKing[0].square % 8 == 0 && i == 0) && board.board[board.whiteKing[0].square - 9 + i] == 'P'){ //extreme Simplifikation. Muss verbessert werden
+                    eval += 0.3;
+                }
+            }
         }
         if(board.blackKing[0].square == 1 || board.blackKing[0].square == 2 || board.blackKing[0].square == 0 || board.blackKing[0].square == 6 || board.blackKing[0].square == 7){
             eval -= 1;
