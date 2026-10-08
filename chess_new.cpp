@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdint>
 #include <random>
+#include <sstream>
 
 
 
@@ -228,13 +229,14 @@ void assign_random_key(uint64_t pieces[12][64], uint64_t castling_rigts[16], uin
 bool hashcheck(Board &board, int depth);
 int castling_help(Board &board);
 bool has_repeated(std::vector<std::string> &game);
+void uciLoop(Board &board);
 
 
 
 
 
 int main(){
-    std::string FEN = "r1b2rk1/ppb2pp1/7p/3Rp3/4B1P1/qPP2N2/P3QP1P/1K5R w - - 0 20"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "rn1qk2r/pbpp1ppp/1p2pn2/8/1b1PP3/2NB1N2/PPP2PPP/R1BQK2R w KQkq - 6 6"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -268,20 +270,11 @@ int main(){
 
     board.fillboard(board.board);
 
-    board.printboard(board.board);
 
     
     board.fillboard(board.board);
     board.fillboard(board.legal_black_moves);
     board.fillboard(board.legal_white_moves);
-
-
-    for(int i = 0; i < 64; i++){
-        std::cout << i << " ";
-        if(i % 8 == 7){
-            std::cout << '\n';
-        }
-    }
     
     FEN_to_position(board, FEN);
 
@@ -300,8 +293,8 @@ int main(){
     }
     board.hash = hashing(board);
 
-    std::cout << evaluation(board) << '\n';
-
+    uciLoop(board);
+    
     /*
 
     while(board.legal_target_squares.size() != 0 && !breaker){
@@ -309,7 +302,7 @@ int main(){
         board.previous_boards.push_back(position_to_FEN(board));
         if(board.turn){
             hashing(board);
-            cycle(board, 6);
+            cycle(board, 4);
             if(board.board[square_to_index(board.move[0], board.move[1])] == 'P' || board.board[square_to_index(board.move[0], board.move[1])] == 'p' || board.board[square_to_index(board.move[2], board.move[3])] != '0'){
                 board.f_counter = 0;
             }
@@ -3411,10 +3404,10 @@ double evaluation(Board &board){
     
     if(board.legal_starting_squares.size() == 0){
         if(iswhiteincheck(board)){
-            return 1000;
+            return -1000;
         }
         if(isblackincheck(board)){
-            return -1000;
+            return 1000;
         }
         return 0;
     }
@@ -3669,6 +3662,11 @@ double evaluation(Board &board){
         }
         if(board.blackKing[0].square == 1 || board.blackKing[0].square == 2 || board.blackKing[0].square == 0 || board.blackKing[0].square == 6 || board.blackKing[0].square == 7){
             eval -= 1;
+            for(int i = 0; i < 3; i++){
+                if(!(board.blackKing[0].square % 8 == 0 && i == 0) && board.board[board.blackKing[0].square + 7 + i] == 'p'){ //extreme Simplifikation. Muss verbessert werden
+                    eval -= 0.3;
+                }
+            }
         }
         eval -= onecounter(board.whiteKing[0].legal_moves) / 8;
         eval += onecounter(board.blackKing[0].legal_moves) / 8;
@@ -4610,4 +4608,151 @@ bool has_repeated(std::vector<std::string> &game){//Sucht eine Liste nach dreifa
         counter = 0;
     }
     return false;
+}
+
+void uciLoop(Board &board){ //aus Claude: https://claude.ai/share/d872890d-f24a-458e-aa9f-1b306753ab0d
+    const std::string startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    std::string line;
+
+    // Tree() prints debug output (moves, evals, "AAAA"). A UCI GUI would choke on that,
+    // so cout is redirected into this "black hole" while the search runs.
+    struct NullBuf : public std::streambuf{
+        int overflow(int c) override { return c; }
+    };
+
+    // Builds a position from scratch (same steps as in main)
+    auto setPosition = [&](const std::string &fen){
+        board.fillboard(board.board);
+        board.fillboard(board.legal_black_moves);
+        board.fillboard(board.legal_white_moves);
+        board.previous_boards.clear();
+        board.boards.clear();
+        board.previous_moves.clear();
+        board.Previous_moves.clear();
+        board.candidates.clear();
+        board.tempmax.clear();
+        board.tempmin.clear();
+        board.breaker = false;
+        board.move = "";
+        board.whiterook.clear(); // otherwise piecelist() would keep the old "hasmoved" flags
+        board.blackrook.clear();
+
+        assign_random_key(board.h_pieces, board.h_castling, board.h_en_passent, board.h_turn);
+        FEN_to_position(board, fen);
+        piecelist(board);
+        FEN_extra(board, fen);
+        legal_moves(board);
+        actual_legal_moves(board);
+        if(board.turn){
+            white_expansion(board);
+        }
+        else{
+            black_expansion(board);
+        }
+        board.hash = hashing(board);
+    };
+
+    setPosition(startFEN); // so that "go" also works without a prior "position" command
+
+    while(std::getline(std::cin, line)){
+        if(!line.empty() && line.back() == '\r'){
+            line.pop_back();
+        }
+        std::istringstream iss(line);
+        std::string cmd;
+        iss >> cmd;
+
+        if(cmd == "uci"){
+            std::cout << "id name MyChessEngine" << std::endl;
+            std::cout << "id author Me" << std::endl;
+            std::cout << "uciok" << std::endl;
+        }
+        else if(cmd == "isready"){
+            std::cout << "readyok" << std::endl;
+        }
+        else if(cmd == "ucinewgame"){
+            std::fill(board.transposition_table.begin(), board.transposition_table.end(), zobrist());
+            setPosition(startFEN);
+        }
+        else if(cmd == "position"){
+            std::vector<std::string> t;
+            std::string tok;
+            while(iss >> tok){
+                t.push_back(tok);
+            }
+            size_t idx = 0;
+            std::string fen = startFEN;
+            if(idx < t.size() && t[idx] == "startpos"){
+                idx++;
+            }
+            else if(idx < t.size() && t[idx] == "fen"){
+                idx++;
+                fen = "";
+                while(idx < t.size() && t[idx] != "moves"){
+                    fen += t[idx] + " ";
+                    idx++;
+                }
+            }
+            setPosition(fen);
+
+            if(idx < t.size() && t[idx] == "moves"){
+                idx++;
+                for(; idx < t.size(); idx++){
+                    const std::string &m = t[idx]; // e.g. "e2e4" or "e7e8q"
+                    if(m.size() < 4){
+                        continue;
+                    }
+                    int from = square_to_index(m[0], m[1]);
+                    int to = square_to_index(m[2], m[3]);
+                    char promotion = '0';
+                    if(m.size() >= 5){
+                        promotion = board.turn ? std::toupper(m[4]) : std::tolower(m[4]); // white = uppercase, black = lowercase
+                    }
+                    domove(board, from, to, promotion);
+                }
+            }
+            board.previous_moves.clear();
+        }
+        else if(cmd == "go"){
+            int depth = 2;
+            std::string tok;
+            while(iss >> tok){
+                if(tok == "depth"){
+                    iss >> depth;
+                }
+            }
+            if(depth < 2){
+                depth = 2; // cycle() starts at depth 2
+            }
+
+            // A stale entry for the root position would make Tree() return early without setting board.move
+            std::fill(board.transposition_table.begin(), board.transposition_table.end(), zobrist());
+            board.previous_moves.clear();
+            board.candidates.clear();
+            board.tempmax.clear();
+            board.tempmin.clear();
+            board.move = "";
+
+            NullBuf nullBuf;
+            std::streambuf *oldBuf = std::cout.rdbuf(&nullBuf);
+            cycle(board, depth);
+            std::cout.rdbuf(oldBuf);
+
+            std::string best = board.move;
+            if(best.size() == 5){
+                best[4] = std::tolower(best[4]); // UCI wants lowercase promotion letters
+            }
+            if(best.size() < 4){
+                best = "0000"; // no legal move (mate/stalemate)
+            }
+            std::cout << "bestmove " << best << std::endl;
+            board.previous_moves.clear();
+        }
+        else if(cmd == "stop"){
+            // search is synchronous, so there is nothing to stop
+        }
+        else if(cmd == "quit"){
+            break;
+        }
+    }
 }
