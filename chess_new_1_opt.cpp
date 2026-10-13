@@ -193,7 +193,7 @@ int pawnfinder(std::vector<pawn> &pawns, int square);
 int movecounter(Board &board);
 bool iswhiteincheck(Board &board);
 bool isblackincheck(Board &board);
-int onecounter(const std::vector<char> &legalboard); // CHANGE 7 (speed): BEFORE: int onecounter(std::vector<char> legalboard);  NOW: const reference, the vector is no longer copied on every call
+double onecounter(const std::vector<char> &legalboard); // CHANGE 7 (speed): BEFORE: int onecounter(std::vector<char> legalboard);  NOW: const reference, the vector is no longer copied on every call
 int zerocounter(std::vector<char> legalboard);
 bool check_check_white(Board &board, int startingsquare, int targetsquare);
 bool check_check_black(Board &board, int startingsquare, int targetsquare);
@@ -431,7 +431,7 @@ static void best_move_squares(const std::string &m, int &from, int &to){
 int main(){
 
 
-    std::string FEN = "r3k2r/1p3ppp/p7/3Qp1P1/P3nP2/1PP5/4Bb1P/R1B2K1q w kq - 0 22"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "r1b2rk1/4npbp/p1qpp1p1/1p6/3PPP2/2PB1N2/P2QN1PP/1R2K2R w K - 0 20"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -460,9 +460,6 @@ int main(){
 
     assign_random_key(board.h_pieces, board.h_castling, board.h_en_passent, board.h_turn);
 
-
-    board.fillboard(board.board);
-
     
     board.fillboard(board.board);
     board.fillboard(board.legal_black_moves);
@@ -487,15 +484,15 @@ int main(){
 
     uciLoop(board);
 
-
-
     /*
+
     while(board.legal_target_squares.size() != 0 && !breaker){
+        std::cout << "A" << '\n';
         auto start = std::chrono::high_resolution_clock::now();
-        if(board.turn){
+        if(!board.turn){
             hashing(board);
             cycle(board, 4);
-            if(board.board[square_to_index(board.move[0], board.move[1])] == 'P' && board.move[3] == '8'){
+            if(board.board[square_to_index(board.move[0], board.move[1])] == 'p' && board.move[3] == '1'){
                 domove(board, square_to_index(board.move[0], board.move[1]), square_to_index(board.move[2], board.move[3]), board.move[4]);
             }
             else{
@@ -516,12 +513,12 @@ int main(){
         board.printboard(board.board);
 
         board.printboard(board.board);  
-        if(!board.turn){
+        if(board.turn){
             std::cout << "Startingsquare: " << '\n';
             std::cin >> start_square;
             std::cout << "Targetsquare: " << '\n';
             std::cin >> target;
-            if(board.board[square_to_index(start_square[0],start_square[1])] == 'p' && target[1] == '1'){
+            if(board.board[square_to_index(start_square[0],start_square[1])] == 'P' && target[1] == '8'){
                 std::cout << "promotion:" << '\n';
                 std::cin >> promotion;
                 domove(board, square_to_index(start_square[0], start_square[1]), square_to_index(target[0], target[1]), promotion);
@@ -1435,7 +1432,7 @@ void blackKingmovement(Board &board){
                     board.legal_black_moves[2] = '1';
                     piece.legal_moves[2] = '1';
                 }
-                if(piece.hasmoved == false && board.board[4] == 'k' && board.board[7] == 'r' && rookfinder(board.blackrook, 0) != -1 && board.blackrook[rookfinder(board.blackrook, 7)].hasmoved == false && board.legal_white_moves[6] == '0' && board.legal_white_moves[5] == '0' && board.board[5] == '0' && board.board[6] == '0'){
+                if(piece.hasmoved == false && board.board[4] == 'k' && board.board[7] == 'r' && rookfinder(board.blackrook, 7) != -1 && board.blackrook[rookfinder(board.blackrook, 7)].hasmoved == false && board.legal_white_moves[6] == '0' && board.legal_white_moves[5] == '0' && board.board[5] == '0' && board.board[6] == '0'){
                     board.legal_black_moves[6] = '1';
                     piece.legal_moves[6] = '1';
                 }
@@ -1685,7 +1682,7 @@ void FEN_extra(Board &board, std::string FEN){
         if (FEN[i] == 'w'){
             board.turn = true; 
         }
-        if(FEN[i] == 'b'){
+        if(FEN[i] == 'b' && i < n + 4){ //behebt einen lustigen Bug, wo board.turn falsch ausgerichtet wurde, da ein en-passent auf der b-Linie möglich war
             board.turn = false;
         }
         if(FEN[i] == 'K' && board.board[63] == 'R'){
@@ -1876,8 +1873,8 @@ bool isblackincheck(Board &board){
     return false;
 }
 
-int onecounter(const std::vector<char> &legalboard){ // CHANGE 7 (speed): BEFORE: int onecounter(std::vector<char> legalboard){  NOW: const reference, the vector is no longer copied on every call
-    int counter = 0;
+double onecounter(const std::vector<char> &legalboard){ // CHANGE 7 (speed): BEFORE: int onecounter(std::vector<char> legalboard){  NOW: const reference, the vector is no longer copied on every call
+    double counter = 0;
     for(int i = 0; i < 64; i++){
         if(legalboard[i] == '1'){
             counter++;
@@ -3597,7 +3594,9 @@ double evaluation(Board &board){
     int counter = 0;
     int rep = 0;
     double pieces = 0;
-    int dist = 1000;
+    double dist = 1000;
+    bool breaker;
+    double knight_outposts = 0.1;
 
     legal_moves(board);
     actual_legal_moves(board);
@@ -3682,7 +3681,7 @@ double evaluation(Board &board){
             knight.value += 0.2;
         }
         eval += knight.value;
-        eval += 0.1 * onecounter(knight.legal_destinations);
+        eval += 0.05 * onecounter(knight.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(knight.legal_destinations[i] == '1'){
                 // CHANGE 3 (speed): BEFORE: if(!isblackincheck(board) && check_check_black(board, knight.square, i)) {  NOW: cheap test first, the expensive one only if a check is really possible
@@ -3691,9 +3690,28 @@ double evaluation(Board &board){
                 }
             }
         }
-        if((knight.square % 8 != 0 && knight.square > 16 && board.board[knight.square - 7] != 'p' && (board.board[knight.square - 15] != 'p' || (pawnfinder(board.blackPawns, knight.square - 15) != -1 && board.blackPawns[pawnfinder(board.blackPawns, knight.square - 15)].legal_moves[knight.square - 7] == '0'))) && (knight.square % 8 != 7 && knight.square > 16 && board.board[knight.square - 9] != 'p' && (board.board[knight.square - 17] != 'p' || (pawnfinder(board.blackPawns, knight.square - 17) != -1 &&board.blackPawns[pawnfinder(board.blackPawns, knight.square - 17)].legal_moves[knight.square - 9] == '0'))) && (knight.square / 8 == 5 && (knight.square != 39 && (board.board[knight.square - 23] != 'p' || (pawnfinder(board.blackPawns, knight.square - 23) != -1 && board.blackPawns[pawnfinder(board.blackPawns, knight.square - 23)].legal_moves[knight.square - 7] == '0'))) && (knight.square != 32 && (board.board[knight.square] - 25 != 'p' || (pawnfinder(board.blackPawns, knight.square - 25) != -1 &&board.blackPawns[pawnfinder(board.blackPawns, knight.square - 25)].legal_moves[knight.square - 9] == '0')))) && knight.square / 8 < 5){
-            eval += 0.5;
+
+        if(knight.square / 8 > 1 && knight.square / 8 < 5 && knight.square % 8 != 0 && knight.square % 8 != 7){
+            breaker = false;
+            for(int i = knight.square - 8; i > 0; i -= 8){
+                if(board.board[i+1] == 'p' || board.board[i - 1] == 'p'){
+                    breaker = true;
+                    break;
+                }
+            }
+            if(!breaker){
+                eval += knight_outposts;
+                if(board.board[knight.square + 7] == 'P' || board.board[knight.square + 9] == 'P'){
+                    eval += knight_outposts;
+                }
+            }
         }
+
+        /*
+        if(knight.square / 8 > 2 && knight.square < 48 && (knight.square % 8 == 0 || (board.board[knight.square + 7] != 'p' && (board.board[knight.square + 15] != 'p' || (pawnfinder(board.blackPawns, knight.square + 15) != -1 && board.blackPawns[pawnfinder(board.blackPawns, knight.square + 15)].legal_moves[knight.square + 7] == '0')))) && (knight.square % 8 == 7 || (board.board[knight.square + 9] != 'p' && (board.board[knight.square + 17] != 'p' || (pawnfinder(board.blackPawns, knight.square + 17) != -1 && board.whitePawns[pawnfinder(board.blackPawns, knight.square + 17)].legal_moves[knight.square + 9] == '0')))) && (knight.square / 8 != 3 || ((knight.square == 24 || board.board[knight.square + 23] != 'p' || (pawnfinder(board.blackPawns, knight.square + 23) != -1 && board.blackPawns[pawnfinder(board.blackPawns, knight.square + 23)].legal_moves[knight.square + 7] == '0')) && (knight.square == 31 || board.board[knight.square + 25] != 'p' || (pawnfinder(board.blackPawns, knight.square + 25) != -1 && board.blackPawns[pawnfinder(board.blackPawns, knight.square + 25)].legal_moves[knight.square + 9] == '0'))))){ //Bedingung für Vorpfostenfeld. Ist tendenziell ungenau, da es auch Felder als Vorpfostenfelder gelten lässt, wenn sie nur vorübergehend sicher sind für den Springer.
+            eval += 0.1;
+        }
+        */
     }
     for(Knight &knight : board.blackKnight){
         counter++;
@@ -3735,7 +3753,7 @@ double evaluation(Board &board){
             knight.value += 0.2;
         }
         eval -= knight.value;
-        eval -= 0.1 * onecounter(knight.legal_destinations);
+        eval -= 0.05 * onecounter(knight.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(knight.legal_destinations[i] == '1'){
                 // CHANGE 3 (speed): BEFORE: if(!iswhiteincheck(board) && check_check_white(board, knight.square, i)){  NOW: cheap test first, the expensive one only if a check is really possible
@@ -3744,8 +3762,20 @@ double evaluation(Board &board){
                 }
             }
         }
-        if((knight.square % 8 != 0 && knight.square < 48 && board.board[knight.square + 7] != 'P' && (board.board[knight.square + 15] != 'P' || (pawnfinder(board.whitePawns, knight.square + 15) != -1 && board.whitePawns[pawnfinder(board.whitePawns, knight.square + 15)].legal_moves[knight.square + 7] == '0'))) && (knight.square % 8 != 7 && knight.square < 47 && board.board[knight.square + 9] != 'P' && (board.board[knight.square + 17] != 'P' || (pawnfinder(board.whitePawns, knight.square + 17) != -1 &&board.whitePawns[pawnfinder(board.whitePawns, knight.square + 17)].legal_moves[knight.square + 9] == '0'))) && (knight.square / 8 == 4 && (((knight.square != 24 && (board.board[knight.square + 23] != 'P' || (pawnfinder(board.whitePawns, knight.square + 23) != -1 && board.whitePawns[pawnfinder(board.whitePawns, knight.square + 23)].legal_moves[knight.square + 7] == '0'))) && (knight.square != 31 && (board.board[knight.square] + 25 != 'P' || (pawnfinder(board.whitePawns, knight.square + 25) != -1 && board.whitePawns[pawnfinder(board.whitePawns, knight.square + 25)].legal_moves[knight.square + 9]) == '0'))))) && knight.square / 8 > 2){ //Bedingung für Vorpfostenfeld. Ist tendenzeill ungenau, da es auch Felder als Vorpfostenfelder gelten lässt, wenn sie nur vorübergehend sicher sind für den Springer.
-            eval -= 0.5;
+        if(knight.square / 8 < 6  && knight.square / 8 > 1 && knight.square % 8 != 0 && knight.square % 8 != 7){
+            breaker = false;
+            for(int i = knight.square + 8; i < 63 ; i += 8){
+                if(board.board[i + 1] == 'P' || board.board[i - 1] == 'P'){
+                    breaker = true;
+                    break;
+                }
+            }
+            if(!breaker){
+                eval -= knight_outposts;
+                if(board.board[knight.square - 7] == 'p' || board.board[knight.square - 9] == 'p'){
+                    eval -= knight_outposts;
+                }
+            }
         }
     }
     for(Bishop &bishop : board.whiteBishop){
@@ -3754,7 +3784,7 @@ double evaluation(Board &board){
         if(bishop.square == 58 || bishop.square == 61){
             eval -= 0.2;
         }
-        eval += 0.1 * onecounter(bishop.legal_destinations);
+        eval += 0.05 * onecounter(bishop.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(bishop.legal_destinations[i] == '1'){
                 // CHANGE 3 (speed): BEFORE: if(!isblackincheck(board) && check_check_black(board, bishop.square, i)){  NOW: cheap test first, the expensive one only if a check is really possible
@@ -3770,7 +3800,7 @@ double evaluation(Board &board){
         if(bishop.square == 2 || bishop.square == 5){
             eval += 0.2;
         }
-        eval -= 0.1 * onecounter(bishop.legal_destinations);
+        eval -= 0.05 * onecounter(bishop.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(bishop.legal_destinations[i] == '1'){
                 // CHANGE 3 (speed): BEFORE: if(!iswhiteincheck(board) && check_check_white(board, bishop.square, i)){  NOW: cheap test first, the expensive one only if a check is really possible
@@ -3783,7 +3813,7 @@ double evaluation(Board &board){
     for(Rook &rook : board.whiterook){
         counter++;
         eval += 5;
-        eval += 0.1 * onecounter(rook.legal_destinations);
+        eval += 0.05 * onecounter(rook.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(rook.legal_destinations[i] == '1'){
                 // CHANGE 3 (speed): BEFORE: if(!isblackincheck(board) && check_check_black(board, rook.square, i)){  NOW: cheap test first, the expensive one only if a check is really possible
@@ -3796,7 +3826,7 @@ double evaluation(Board &board){
     for(Rook &rook : board.blackrook){
         counter++;
         eval -= 5;
-        eval -= 0.1 * onecounter(rook.legal_destinations);
+        eval -= 0.05 * onecounter(rook.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(rook.legal_destinations[i] == '1'){
                 // CHANGE 3 (speed): BEFORE: if(!iswhiteincheck(board) &&  check_check_white(board, rook.square, i)){  NOW: cheap test first, the expensive one only if a check is really possible
@@ -3811,7 +3841,7 @@ double evaluation(Board &board){
         eval += 9;
         // CHANGE 8 (speed): BEFORE: if(piececounter(board.board) < 12){  NOW: uses piece_count (counted once above)
         if(piece_count < 12){
-            eval += 0.05 * onecounter(queen.legal_destinations);
+            eval += 0.01 * onecounter(queen.legal_destinations);
         }
         for(int i = 0; i < 64; i++){
             if(queen.legal_destinations[i] == '1'){
@@ -3827,7 +3857,7 @@ double evaluation(Board &board){
         eval -= 9;
         // CHANGE 8 (speed): BEFORE: if(piececounter(board.board) < 12){  NOW: uses piece_count (counted once above)
         if(piece_count < 12){
-            eval -= 0.05 * onecounter(queen.legal_destinations);
+            eval -= 0.01 * onecounter(queen.legal_destinations);
         }
         for(int i = 0; i < 64; i++){
             if(queen.legal_destinations[i] == '1'){
@@ -3851,7 +3881,7 @@ double evaluation(Board &board){
         }
         if(pawn.square == 27 || pawn.square == 28 || pawn.square == 35 || pawn.square == 36){
             // CHANGE 8 (speed): BEFORE: eval += piececounter(board.board) / 14;  NOW: uses piece_count (counted once above)
-            eval += piece_count / 14;
+            eval += piece_count / 14.0;
         }
         for(int i = 0; i < 64; i++){
             if(pawn.legal_destinations[i] == '1'){
@@ -3882,7 +3912,7 @@ double evaluation(Board &board){
         }
         if(pawn.square == 27 || pawn.square == 28 || pawn.square == 35 || pawn.square == 36){
             // CHANGE 8 (speed): BEFORE: eval -= piececounter(board.board) / 14;  NOW: uses piece_count (counted once above)
-            eval -= piece_count / 14;
+            eval -= piece_count / 14.0;
         }
         for(int i = 0; i < 64; i++){
             if(pawn.legal_destinations[i] == '1'){
@@ -3922,7 +3952,7 @@ double evaluation(Board &board){
                 }
             }
         }
-        eval -= 8/sqrt(dist); 
+        eval -= 1/sqrt(dist); 
     }
     // CHANGE 8 (speed): BEFORE: if(piececounter(board.board) <= 2 && board.blackQueen.size() == 0){  NOW: uses piece_count (counted once above)
     if(piece_count <= 2 && board.blackQueen.size() == 0){ //maximiert Königsmobilität im Endspiel
@@ -3935,25 +3965,25 @@ double evaluation(Board &board){
                 }
             }
         }
-        eval += 8/sqrt(dist); 
+        eval += 1/sqrt(dist); 
     }
     if(eval > 8){
-        eval += (8-onecounter(board.blackKing[0].legal_destinations)/8); //bei gewonnen Stellungen sollte der König eingeengt werden
+        eval += (8-onecounter(board.blackKing[0].legal_destinations))/8.0; //bei gewonnen Stellungen sollte der König eingeengt werden
         // CHANGE 8 (speed): BEFORE: if(piececounter(board.board) <= 4){  NOW: uses piece_count (counted once above)
         if(piece_count <= 4){ //Bei gewonnenen Endspielen sollte der Abstand zum gegnerischen König minimiert werden sowie dessen Distanz zu der Ecke.
-            eval -= sqrt(((board.whiteKing[0].square / 8) - (board.blackKing[0].square / 8)) * ((board.whiteKing[0].square / 8) - (board.blackKing[0].square / 8)) + ((board.whiteKing[0].square % 8 - board.blackKing[0].square % 8)) * ((board.whiteKing[0].square % 8 - board.blackKing[0].square % 8))); //Distanz zum gegerischen König
+            eval += 1/sqrt(((board.whiteKing[0].square / 8) - (board.blackKing[0].square / 8)) * ((board.whiteKing[0].square / 8) - (board.blackKing[0].square / 8)) + ((board.whiteKing[0].square % 8 - board.blackKing[0].square % 8)) * ((board.whiteKing[0].square % 8 - board.blackKing[0].square % 8))); //Distanz zum gegerischen König
             if(piece_count > 1){
-                eval += 1.0/(abs(board.whiteKing[0].square / 8 - 4)+1) + 1/(abs(board.whiteKing[0].square % 8 - 4)+1); //Distanz zur Ecke
+                eval += 1.0/(abs(board.whiteKing[0].square / 8 - 4.0)+1) + 1/(abs(board.whiteKing[0].square % 8 - 4.0)+1); //Distanz zur Ecke
             }
         }
     }
     if(eval < -8){
-        eval -= (8-onecounter(board.whiteKing[0].legal_destinations)) / 8;
+        eval -= (8-onecounter(board.whiteKing[0].legal_destinations)) / 8.0;
         // CHANGE 8 (speed): BEFORE: if(piececounter(board.board) <= 4){  NOW: uses piece_count (counted once above)
         if(piece_count <= 4){
-            eval += sqrt(((board.whiteKing[0].square / 8) - (board.blackKing[0].square / 8)) * ((board.whiteKing[0].square / 8) - (board.blackKing[0].square / 8)) + ((board.whiteKing[0].square % 8 - board.blackKing[0].square % 8)) * ((board.whiteKing[0].square % 8 - board.blackKing[0].square % 8)));
+            eval -= 1/sqrt(((board.whiteKing[0].square / 8) - (board.blackKing[0].square / 8)) * ((board.whiteKing[0].square / 8) - (board.blackKing[0].square / 8)) + ((board.whiteKing[0].square % 8 - board.blackKing[0].square % 8)) * ((board.whiteKing[0].square % 8 - board.blackKing[0].square % 8)));
             if(piece_count > 1){
-                eval -= 1.0/(abs(board.blackKing[0].square / 8 - 4)+1) + 1/(abs(board.blackKing[0].square % 8 - 4)+1);
+                eval -= 1.0/(abs(board.blackKing[0].square / 8 - 4.0)+1) + 1/(abs(board.blackKing[0].square % 8 - 4.0)+1);
             }
         }
     }
@@ -4150,10 +4180,13 @@ void cycle(Board &board, int depth){
     double tempeval;
     double alpha;
     double beta;
-    for(int i = 2; i < depth + 1; i += 2){
+    for(int i = 2; i < depth + 3; i += 2){
         alpha = -10000;
         beta = 10000;
         tempeval = Tree(board, i, positions, i, alpha, beta);
+        if(i >= depth && piececounter(board.board) > 4){
+            break;
+        }
         if(board.turn && tempeval > 900){
             break;
         }
@@ -4177,12 +4210,13 @@ int piececounter(std::vector<char> &board){
 }
 
 int distance(int start, int target){
-    return sqrt(abs(start*start - target*target));
+    return sqrt((((start/8) -(target/8)) * ((start/8) -(target/8))) + (((start%8) -(target%8))* ((start%8) -(target%8))));
 }
 
 void weak_pawns(Board &board){
 
     for(pawn &pawn : board.whitePawns){
+        pawn.is_weak = true;
         for(int i = pawn.square; i < 56; i += 8){
             if((pawn.square % 8 != 7 && board.board[i+1] == 'P') || (pawn.square % 8 != 0 && board.board[i-1] == 'P')){
                 pawn.is_weak = false;
@@ -4193,6 +4227,7 @@ void weak_pawns(Board &board){
         }
     }
     for(pawn &pawn : board.blackPawns){
+        pawn.is_weak = true;
         for(int i = pawn.square; i > 8; i -= 8){
             if((pawn.square % 8 != 7 && board.board[i+1] == 'p') || (pawn.square % 8 != 0 && board.board[i-1] == 'p')){
                 pawn.is_weak = false;
@@ -4961,7 +4996,7 @@ void uciLoop(Board &board){ //aus Claude: https://claude.ai/share/d872890d-f24a-
             board.previous_moves.clear();
         }
         else if(cmd == "go"){
-            int depth = 4;
+            int depth = 2;
             std::string tok;
             while(iss >> tok){
                 if(tok == "depth"){

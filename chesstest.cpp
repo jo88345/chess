@@ -213,7 +213,7 @@ void weak_pawns(Board &board);
 
 
 int main(){
-    std::string FEN = "r1bk2nr/p1p1ppbp/1pP5/1B4B1/8/5p2/PPP2PPP/RN2K2R w KQ - 0 9"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "3k1b1r/5p2/2bp1npp/2pPp3/Qp6/5N2/PP1B1PPP/R4RK1 w - - 0 21"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -234,6 +234,7 @@ int main(){
     char promotion;
     int rep = 0;
     bool breaker = false;
+    std::vector <char> test;
 
     Board board;
 
@@ -249,6 +250,7 @@ int main(){
 
     for(int i = 0; i < 64; i++){
         std::cout << i << " ";
+        test.push_back('0');
         if(i % 8 == 7){
             std::cout << '\n';
         }
@@ -270,8 +272,19 @@ int main(){
         black_expansion(board);         
     }
 
-    Tree(board, 4, positions, 4 , alpha, beta);
-    std::cout << board.move << '\n';
+    evaluation(board);
+
+    for(pawn Pawn : board.whitePawns){
+        if(Pawn.is_weak){
+            std::cout << Pawn.square << '\n';
+            test[Pawn.square] = 'P';
+        }
+    }
+    board.printboard(test);
+
+
+
+
 
     /*
     
