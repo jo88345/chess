@@ -3150,11 +3150,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
             uint64_t childHash = board.hash; // hash of the position we're about to evaluate
             // FIX (repetition): a repeated position is a draw, its subtree is not searched at all
             double tempeval = rep ? 0 : Tree(board, depth - 1, positions, constant_depth, alpha, beta);
-            undomove(board); // board.hash reverts to the PARENT's hash after this point
-            // FIX (transposition table): only store EXACT scores. A score outside the (alpha, beta)
-            // window comes from a cut-off and is only a bound; storing it as if it were exact is what
-            // made the engine hang the bishop. Repetition draws are not stored either, because the
-            // same position is not a draw when it is reached by a different move order.
+            undomove(board); 
             if(!rep && tempeval > alpha && tempeval < beta){
                 tt_store(board, childHash, depth - 1, tempeval);
             }
@@ -3944,7 +3940,7 @@ double evaluation(Board &board){
     // CHANGE 8 (speed): BEFORE: if(piececounter(board.board) <= 2 && board.whiteQueen.size() == 0){  NOW: uses piece_count (counted once above)
     if(piece_count <= 2 && board.whiteQueen.size() == 0){ //maximiert Königsmobilität im Endspiel
         eval -= onecounter(board.blackKing[0].legal_destinations) / 8;
-        eval -= 4/(abs(board.blackKing[0].square / 8 - 4)+1);
+        eval -= 4.0/(abs(board.blackKing[0].square / 8 - 4)+1);
         for(pawn &Pawn : board.whitePawns){ //sollte die Distanz zwischen König und dem nächsten unverteidigtwn Bauern minimieren.
             if(!square_attacked(board.board, Pawn.square, 1)){
                 if(distance(board.blackKing[0].square, Pawn.square) < dist){
@@ -3957,7 +3953,7 @@ double evaluation(Board &board){
     // CHANGE 8 (speed): BEFORE: if(piececounter(board.board) <= 2 && board.blackQueen.size() == 0){  NOW: uses piece_count (counted once above)
     if(piece_count <= 2 && board.blackQueen.size() == 0){ //maximiert Königsmobilität im Endspiel
         eval += onecounter(board.whiteKing[0].legal_destinations) / 8;
-        eval += 4/(abs(board.whiteKing[0].square / 8 - 4)+2);
+        eval += 4.0/(abs(board.whiteKing[0].square / 8 - 4)+2);
         for(pawn &Pawn : board.blackPawns){ //sollte die Distanz zwischen König und dem nächsten unverteidigtwn Bauern minimieren.
             if(!square_attacked(board.board, Pawn.square, 0)){
                 if(distance(board.whiteKing[0].square, Pawn.square) < dist){
