@@ -216,7 +216,7 @@ double difference(Board &board, int startingsquare, int targetsquare);
 void domove_temp(std::vector<char> &board, int startingsquare, int targetsquare, char promotion);
 bool square_attacked(std::vector<char> &b, int square, bool byWhite);
 void cycle(Board &board, int depth);
-int piececounter (std::vector<char> &board);
+double piececounter (std::vector<char> &board);
 int distance(int start, int target);
 int distance(int start, int target);
 void weak_pawns(Board &board);
@@ -1239,7 +1239,7 @@ void blackKingmovement(Board &board){
                     board.legal_black_moves[2] = '1';
                     piece.legal_moves[2] = '1';
                 }
-                if(piece.hasmoved == false && board.board[4] == 'k' && board.board[7] == 'r' && rookfinder(board.blackrook, 0) != -1 && board.blackrook[rookfinder(board.blackrook, 7)].hasmoved == false && board.legal_white_moves[6] == '0' && board.legal_white_moves[5] == '0' && board.board[5] == '0' && board.board[6] == '0'){
+                if(piece.hasmoved == false && board.board[4] == 'k' && board.board[7] == 'r' && rookfinder(board.blackrook, 7) != -1 && board.blackrook[rookfinder(board.blackrook, 7)].hasmoved == false && board.legal_white_moves[6] == '0' && board.legal_white_moves[5] == '0' && board.board[5] == '0' && board.board[6] == '0'){
                     board.legal_black_moves[6] = '1';
                     piece.legal_moves[6] = '1';
                 }
@@ -3852,8 +3852,8 @@ void cycle(Board &board, int depth){
     } 
 }
 
-int piececounter(std::vector<char> &board){
-    int counter = 0;
+double piececounter(std::vector<char> &board){
+    double counter = 0;
     for(int i = 0; i < 64; i++){
         if(iswhitepiece(board, i) && board[i] != 'P'){
             counter++;
@@ -4691,4 +4691,5 @@ void uciLoop(Board &board){ //aus Claude: https://claude.ai/share/d872890d-f24a-
         }
     }
 }
+
 

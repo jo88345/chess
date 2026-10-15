@@ -459,7 +459,7 @@ int main(){
         black_expansion(board);         
     }
 
-    std::ofstream csv("Benchmarks_w_transpositiontable.csv");
+    std::ofstream csv("Benchmarks_w_tt_2.csv");
     csv << "FEN, Nodes, depth, best_move, time(ms)" << '\n';
 
     
@@ -480,7 +480,7 @@ int main(){
             black_expansion(board);         
         }
         std::cout << position_to_FEN(board) << '\n';
-        cycle(board, 4, csv);
+        cycle(board, 6, csv);
         board.fillboard(board.board);
     }
 

@@ -3639,7 +3639,42 @@ double evaluation(Board &board){
     const int piece_count = piececounter(board.board);
     for(Knight &knight : board.whiteKnight){
         counter++;
-        knight.value = 3;
+        if(knight.square / 8 == 0){
+            knight.value += -0.5;
+        }
+        if(knight.square / 8 == 1){
+            knight.value += -0.1;
+        }
+        if(knight.square / 8 == 2){
+            knight.value += 0.1;
+        }
+        if(knight.square / 8 == 3){
+            knight.value += 0.2;
+        }
+        if(knight.square / 8 == 4){
+            knight.value += 0.2;
+        }
+        if(knight.square / 8 == 5){
+            knight.value += 0.2;
+        }
+        if(knight.square / 8 == 6){
+            knight.value += -0.1;
+        }
+        if(knight.square / 8 == 7){
+            knight.value += -0.2;
+        }
+        if(knight.square % 8 == 0 || knight.square % 8 == 7){
+            knight.value += -0.5;
+        }
+        if(knight.square % 8 == 1 || knight.square % 8 == 6){
+            knight.value += -0.1;
+        }
+        if(knight.square % 8 == 2 || knight.square % 8 == 5){
+            knight.value += 0.1;
+        }
+        if(knight.square % 8 == 3 || knight.square % 8 == 4){
+            knight.value += 0.2;
+        }
         eval += knight.value;
         eval += 0.05 * onecounter(knight.legal_destinations);
         for(int i = 0; i < 64; i++){
@@ -3675,7 +3710,42 @@ double evaluation(Board &board){
     }
     for(Knight &knight : board.blackKnight){
         counter++;
-        knight.value = 3;
+        if(knight.square / 8 == 0){
+            knight.value += -0.2;
+        }
+        if(knight.square / 8 == 1){
+            knight.value += -0.1;
+        }
+        if(knight.square / 8 == 2){
+            knight.value += 0.1;
+        }
+        if(knight.square / 8 == 3){
+            knight.value += 0.2;
+        }
+        if(knight.square / 8 == 4){
+            knight.value += 0.2;
+        }
+        if(knight.square / 8 == 5){
+            knight.value += 0.2;
+        }
+        if(knight.square / 8 == 6){
+            knight.value += -0.1;
+        }
+        if(knight.square / 8 == 7){
+            knight.value += -0.5;
+        }
+        if(knight.square % 8 == 0 || knight.square % 8 == 7){
+            knight.value += -0.5;
+        }
+        if(knight.square % 8 == 1 || knight.square % 8 == 6){
+            knight.value += -0.1;
+        }
+        if(knight.square % 8 == 2 || knight.square % 8 == 5){
+            knight.value += 0.1;
+        }
+        if(knight.square % 8 == 3 || knight.square % 8 == 4){
+            knight.value += 0.2;
+        }
         eval -= knight.value;
         eval -= 0.05 * onecounter(knight.legal_destinations);
         for(int i = 0; i < 64; i++){
@@ -3704,7 +3774,6 @@ double evaluation(Board &board){
     }
     for(Bishop &bishop : board.whiteBishop){
         counter++;
-        eval += 3.5;
         if(bishop.square == 58 || bishop.square == 61){
             eval -= 0.2;
         }
@@ -3720,7 +3789,6 @@ double evaluation(Board &board){
     }
     for(Bishop &bishop : board.blackBishop){
         counter++;
-        eval -= 3.5;
         if(bishop.square == 2 || bishop.square == 5){
             eval += 0.2;
         }
@@ -3736,7 +3804,6 @@ double evaluation(Board &board){
     }
     for(Rook &rook : board.whiterook){
         counter++;
-        eval += 5;
         eval += 0.05 * onecounter(rook.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(rook.legal_destinations[i] == '1'){
@@ -3749,7 +3816,6 @@ double evaluation(Board &board){
     }
     for(Rook &rook : board.blackrook){
         counter++;
-        eval -= 5;
         eval -= 0.05 * onecounter(rook.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(rook.legal_destinations[i] == '1'){
@@ -3762,7 +3828,6 @@ double evaluation(Board &board){
     }
     for(Queen &queen : board.whiteQueen){
         counter++;
-        eval += 9;
         // CHANGE 8 (speed): BEFORE: if(piececounter(board.board) < 12){  NOW: uses piece_count (counted once above)
         if(piece_count < 12){
             eval += 0.01 * onecounter(queen.legal_destinations);
@@ -3778,7 +3843,6 @@ double evaluation(Board &board){
     }
     for(Queen &queen : board.blackQueen){
         counter++;
-        eval -= 9;
         // CHANGE 8 (speed): BEFORE: if(piececounter(board.board) < 12){  NOW: uses piece_count (counted once above)
         if(piece_count < 12){
             eval -= 0.01 * onecounter(queen.legal_destinations);
@@ -3794,7 +3858,6 @@ double evaluation(Board &board){
     }
     for(pawn &pawn : board.whitePawns){
         counter++;
-        eval += 1;
         pawn.ispassed = true;
         int file = pawn.square % 8;
         for(int j = pawn.square / 8 - 1; j >= 0; j--){ 
@@ -3825,7 +3888,6 @@ double evaluation(Board &board){
     }
     for(pawn &pawn : board.blackPawns){
         counter++;
-        eval -= 1;
         pawn.ispassed = true;
         int file = pawn.square % 8;
         for(int j = pawn.square / 8 + 1; j < 8; j++){

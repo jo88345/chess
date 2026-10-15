@@ -88,7 +88,6 @@ class Previous_move{
     char previous_promotion;
     double difference;
     bool was_check = false;
-    
 };
 
 class Board{ //Idee aus ChatGPT
@@ -459,11 +458,12 @@ int main(){
         black_expansion(board);         
     }
 
-    std::ofstream csv("Benchmarks_w_transpositiontable.csv");
+    std::ofstream csv("Benchmarks_pure_minimax_4.csv");
     csv << "FEN, Nodes, depth, best_move, time(ms)" << '\n';
 
     
     for(std::string position : Benchmark_list){
+        board.fillboard(board.board);
         FEN_to_position(board, position);
 
         piecelist(board);
@@ -480,7 +480,7 @@ int main(){
             black_expansion(board);         
         }
         std::cout << position_to_FEN(board) << '\n';
-        cycle(board, 4, csv);
+        cycle(board, 3, csv);
         board.fillboard(board.board);
     }
 
@@ -2591,61 +2591,6 @@ void white_expansion(Board &board){
             }
         }
     }
-    for(int i = 0; i < board.legal_starting_squares.size(); i++){
-        // CHANGE 3 (speed): BEFORE: if((check_check_black(board, board.legal_starting_squares[i], board.legal_target_squares[i]))){
-        // NOW: the cheap test gives_check_fast() is used. Only if the enemy king is already in check (cannot happen in a legal position) the old test is used.
-        if(enemyInCheck ? check_check_black(board, board.legal_starting_squares[i], board.legal_target_squares[i]) : gives_check_fast(board, board.legal_starting_squares[i], board.legal_target_squares[i], true)){
-            temp = board.legal_starting_squares[i];
-            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
-            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
-            temp = board.legal_target_squares[i];
-            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
-            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
-        }
-    }
-    for(int i = 0; i < board.legal_starting_squares.size(); i++){
-        if(isblackpiece(board.board, board.legal_target_squares[i]) && difference(board, board.legal_starting_squares[i], board.legal_target_squares[i]) < 0){
-            temp = board.legal_starting_squares[i];
-            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
-            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
-            temp = board.legal_target_squares[i];
-            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
-            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
-        }
-    }
-    for(int i = 0; i < board.legal_starting_squares.size(); i++){
-        if(isblackpiece(board.board, board.legal_target_squares[i]) && difference(board, board.legal_starting_squares[i], board.legal_target_squares[i]) == 0){
-            temp = board.legal_starting_squares[i];
-            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
-            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
-            temp = board.legal_target_squares[i];
-            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
-            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
-        }
-    }
-    
-    for(int i = 0; i < board.legal_starting_squares.size(); i++){
-        if(isblackpiece(board.board, board.legal_target_squares[i]) && difference(board, board.legal_starting_squares[i], board.legal_target_squares[i]) > 0){
-            temp = board.legal_starting_squares[i];
-            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
-            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
-            temp = board.legal_target_squares[i];
-            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
-            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
-        }
-    }
-    for(int i = 0; i < board.legal_starting_squares.size(); i++){
-        // CHANGE 6 (speed): BEFORE: if(board.move == index_to_square(board.legal_starting_squares[i]) + index_to_square(board.legal_target_squares[i])){
-        // NOW: the squares are compared as numbers, no strings are built for every move.
-        if(board.legal_starting_squares[i] == bestFrom && board.legal_target_squares[i] == bestTo){
-            temp = board.legal_starting_squares[i];
-            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
-            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
-            temp = board.legal_target_squares[i];
-            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
-            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
-        }
-    }
 }
 
 void black_expansion(Board &board){
@@ -2708,62 +2653,6 @@ void black_expansion(Board &board){
             }
         }
     }
-    
-    for(int i = 0; i < board.legal_starting_squares.size(); i++){
-        // CHANGE 3 (speed): BEFORE: if((check_check_white(board, board.legal_starting_squares[i], board.legal_target_squares[i]))){
-        // NOW: the cheap test gives_check_fast() is used. Only if the enemy king is already in check (cannot happen in a legal position) the old test is used.
-        if(enemyInCheck ? check_check_white(board, board.legal_starting_squares[i], board.legal_target_squares[i]) : gives_check_fast(board, board.legal_starting_squares[i], board.legal_target_squares[i], false)){
-            temp = board.legal_starting_squares[i];
-            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
-            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
-            temp = board.legal_target_squares[i];
-            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
-            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
-        }
-    }
-    for(int i = 0; i < board.legal_starting_squares.size(); i++){
-        if(iswhitepiece(board.board, board.legal_target_squares[i]) && difference(board, board.legal_starting_squares[i], board.legal_target_squares[i]) < 0){
-            temp = board.legal_starting_squares[i];
-            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
-            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
-            temp = board.legal_target_squares[i];
-            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
-            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
-        }
-    }
-    for(int i = 0; i < board.legal_starting_squares.size(); i++){
-        if(iswhitepiece(board.board, board.legal_target_squares[i]) && difference(board, board.legal_starting_squares[i], board.legal_target_squares[i]) == 0){
-            temp = board.legal_starting_squares[i];
-            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
-            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
-            temp = board.legal_target_squares[i];
-            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
-            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
-        }
-    }
-    
-    for(int i = 0; i < board.legal_starting_squares.size(); i++){
-        if(iswhitepiece(board.board, board.legal_target_squares[i]) && difference(board, board.legal_starting_squares[i], board.legal_target_squares[i]) > 0){
-            temp = board.legal_starting_squares[i];
-            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
-            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
-            temp = board.legal_target_squares[i];
-            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
-            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
-        }
-    }
-    for(int i = 0; i < board.legal_starting_squares.size(); i++){
-        // CHANGE 6 (speed): BEFORE: if(board.move == index_to_square(board.legal_starting_squares[i]) + index_to_square(board.legal_target_squares[i])){
-        // NOW: the squares are compared as numbers, no strings are built for every move.
-        if(board.legal_starting_squares[i] == bestFrom && board.legal_target_squares[i] == bestTo){
-            temp = board.legal_starting_squares[i];
-            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
-            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
-            temp = board.legal_target_squares[i];
-            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
-            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
-        }
-    }
 }
 
 int positionfinder(std::vector<std::string> positions, std::string wanted_position){
@@ -2776,8 +2665,7 @@ int positionfinder(std::vector<std::string> positions, std::string wanted_positi
 }
 
 double Tree(Board &board, int depth, int &positions, const int &constant_depth, double alpha, double beta){ //Die Grundidee ist aus Claude, da ich komplett verzweifelt war
-    board.positions++;
-    
+board.positions++;
 
     double maxEval;
     double minEval;
@@ -2825,35 +2713,22 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
         quiescence = true;
         double stand_pat = evaluation(board);
         if(board.turn){
-            if(stand_pat >= beta){
-                return stand_pat;
-            }
-            maxEval = stand_pat;
-            if(stand_pat > alpha){
-                alpha = stand_pat;
-            }
+            maxEval = stand_pat;   
         }
         else{
-            if(stand_pat <= alpha){
-                return stand_pat;
-            }
-            minEval = stand_pat;
-            if(stand_pat < beta){
-                beta = stand_pat;
-            }
+            minEval = stand_pat;      
         }
     }
-
     for(size_t i = 0; i < starts.size(); i++){
         if(quiescence){
-            char mover = board.board[starts[i]];
-            bool is_capture = board.board[targets[i]] != '0';
-            bool is_en_passant = (mover == 'P' || mover == 'p') && (starts[i] % 8 != targets[i] % 8);
-            bool is_promotion = (mover == 'P' && targets[i] / 8 == 0) || (mover == 'p' && targets[i] / 8 == 7);
-            if(!is_capture && !is_en_passant && !is_promotion){
-                continue;
-            }
+        char mover = board.board[starts[i]];
+        bool is_capture = board.board[targets[i]] != '0';
+        bool is_en_passant = (mover == 'P' || mover == 'p') && (starts[i] % 8 != targets[i] % 8);
+        bool is_promotion = (mover == 'P' && targets[i] / 8 == 0) || (mover == 'p' && targets[i] / 8 == 7);
+        if(!is_capture && !is_en_passant && !is_promotion){
+            continue;
         }
+    }
         if(depth == constant_depth){ //Für debugging. ich habe es auf -1 gesetzt, damit ich es schnell wieder aktivieren kann. Als Erinnerung: oben = Tiefe, unten = Tiefe - 1
             board.previous_move = index_to_square(starts[i]) + index_to_square(targets[i]);
             board.previous_moves.push_back(board.previous_move);
@@ -2886,12 +2761,6 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 if(tempeval > maxEval){
                     maxEval = tempeval;
                 }
-                if(maxEval > alpha){
-                    alpha = maxEval;
-                }
-            }
-            if(beta <= alpha){
-                break;
             }
             domove(board, starts[i], targets[i], 'N');
             tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
@@ -2903,12 +2772,6 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 if(depth == constant_depth){
                     board.tempmax.push_back(tempeval);
                     board.candidates.push_back(board.previous_moves.back());
-                }
-                if(tempeval > maxEval){
-                    maxEval = tempeval;
-                }
-                if(maxEval > alpha){
-                    alpha = maxEval;
                 }
             }
 
@@ -2929,13 +2792,6 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 if(tempeval > maxEval){
                     maxEval = tempeval;
                 }
-                if(maxEval > alpha){
-                    alpha = maxEval;
-                }
-            }
-
-            if(beta <= alpha){
-                break;
             }
             domove(board, starts[i], targets[i], 'Q');
             tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
@@ -2948,13 +2804,6 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 if(tempeval > maxEval){
                     maxEval = tempeval;
                 }
-                if(maxEval > alpha){
-                    alpha = maxEval;
-                }
-            }
-
-            if(beta <= alpha){
-                break;
             }
         }
         
@@ -2987,12 +2836,6 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 if(tempeval < minEval){
                     minEval = tempeval;
                 }
-                if(minEval < beta){
-                    beta = minEval;
-                }
-            }
-            if(beta <= alpha){
-                break;
             }
             domove(board, starts[i], targets[i], 'n');
             tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
@@ -3009,12 +2852,6 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 if(tempeval < minEval){
                     minEval = tempeval;
                 }
-                if(minEval < beta){
-                    beta = minEval;
-                }
-            }
-            if(beta <= alpha){
-                break;
             }
             domove(board, starts[i], targets[i], 'r');
             tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
@@ -3031,12 +2868,6 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 if(tempeval < minEval){
                     minEval = tempeval;
                 }
-                if(minEval < beta){
-                    beta = minEval;
-                }
-            }
-            if(beta <= alpha){
-                break;
             }
             domove(board, starts[i], targets[i], 'q');
             tempeval = Tree(board, depth - 1, positions, constant_depth, alpha, beta);
@@ -3050,12 +2881,6 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 if(tempeval < minEval){
                     minEval = tempeval;
                 }
-                if(minEval < beta){
-                    beta = minEval;
-                }
-            }
-            if(beta <= alpha){
-                break;
             }
         }
         
@@ -3066,6 +2891,7 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
             double tempeval = rep ? 0 : Tree(board, depth - 1, positions, constant_depth, alpha, beta);
             undomove(board); 
 
+
             if(board.turn){
                 if(depth == constant_depth){
                     board.tempmax.push_back(tempeval);
@@ -3073,9 +2899,6 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 }
                 if(tempeval > maxEval){
                     maxEval = tempeval;
-                }
-                if(maxEval > alpha){
-                    alpha = maxEval;
                 }
             }
             if(!board.turn){
@@ -3086,12 +2909,6 @@ double Tree(Board &board, int depth, int &positions, const int &constant_depth, 
                 if(tempeval < minEval){
                     minEval = tempeval;
                 }
-                if(minEval < beta){
-                    beta = minEval;
-                }
-            }
-            if(beta <= alpha){
-                break;
             }
         }
     }

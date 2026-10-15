@@ -482,7 +482,7 @@ int main(){
     }
     board.hash = hashing(board);
 
-    std::ofstream csv("Benchmarks_w_move_ordering.csv");
+    std::ofstream csv("Benchmarks_w_complete_3.csv");
     csv << "FEN, Nodes, depth, best_move, time(ms)" << '\n';
 
     
@@ -503,7 +503,7 @@ int main(){
             black_expansion(board);         
         }
         std::cout << position_to_FEN(board) << '\n';
-        cycle(board, 4, csv);
+        cycle(board, 6, csv);
         board.fillboard(board.board);
     }
 
@@ -2688,6 +2688,61 @@ void white_expansion(Board &board){
             }
         }
     }
+    for(int i = 0; i < board.legal_starting_squares.size(); i++){
+        // CHANGE 3 (speed): BEFORE: if((check_check_black(board, board.legal_starting_squares[i], board.legal_target_squares[i]))){
+        // NOW: the cheap test gives_check_fast() is used. Only if the enemy king is already in check (cannot happen in a legal position) the old test is used.
+        if(enemyInCheck ? check_check_black(board, board.legal_starting_squares[i], board.legal_target_squares[i]) : gives_check_fast(board, board.legal_starting_squares[i], board.legal_target_squares[i], true)){
+            temp = board.legal_starting_squares[i];
+            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
+            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
+            temp = board.legal_target_squares[i];
+            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
+            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
+        }
+    }
+    for(int i = 0; i < board.legal_starting_squares.size(); i++){
+        if(isblackpiece(board.board, board.legal_target_squares[i]) && difference(board, board.legal_starting_squares[i], board.legal_target_squares[i]) < 0){
+            temp = board.legal_starting_squares[i];
+            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
+            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
+            temp = board.legal_target_squares[i];
+            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
+            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
+        }
+    }
+    for(int i = 0; i < board.legal_starting_squares.size(); i++){
+        if(isblackpiece(board.board, board.legal_target_squares[i]) && difference(board, board.legal_starting_squares[i], board.legal_target_squares[i]) == 0){
+            temp = board.legal_starting_squares[i];
+            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
+            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
+            temp = board.legal_target_squares[i];
+            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
+            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
+        }
+    }
+    
+    for(int i = 0; i < board.legal_starting_squares.size(); i++){
+        if(isblackpiece(board.board, board.legal_target_squares[i]) && difference(board, board.legal_starting_squares[i], board.legal_target_squares[i]) > 0){
+            temp = board.legal_starting_squares[i];
+            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
+            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
+            temp = board.legal_target_squares[i];
+            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
+            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
+        }
+    }
+    for(int i = 0; i < board.legal_starting_squares.size(); i++){
+        // CHANGE 6 (speed): BEFORE: if(board.move == index_to_square(board.legal_starting_squares[i]) + index_to_square(board.legal_target_squares[i])){
+        // NOW: the squares are compared as numbers, no strings are built for every move.
+        if(board.legal_starting_squares[i] == bestFrom && board.legal_target_squares[i] == bestTo){
+            temp = board.legal_starting_squares[i];
+            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
+            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
+            temp = board.legal_target_squares[i];
+            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
+            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
+        }
+    }
 }
 
 void black_expansion(Board &board){
@@ -2748,6 +2803,61 @@ void black_expansion(Board &board){
                 board.legal_starting_squares.push_back(king.square);
                 board.legal_target_squares.push_back(i);
             }
+        }
+    }
+    for(int i = 0; i < board.legal_starting_squares.size(); i++){
+        // CHANGE 3 (speed): BEFORE: if((check_check_white(board, board.legal_starting_squares[i], board.legal_target_squares[i]))){
+        // NOW: the cheap test gives_check_fast() is used. Only if the enemy king is already in check (cannot happen in a legal position) the old test is used.
+        if(enemyInCheck ? check_check_white(board, board.legal_starting_squares[i], board.legal_target_squares[i]) : gives_check_fast(board, board.legal_starting_squares[i], board.legal_target_squares[i], false)){
+            temp = board.legal_starting_squares[i];
+            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
+            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
+            temp = board.legal_target_squares[i];
+            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
+            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
+        }
+    }
+    for(int i = 0; i < board.legal_starting_squares.size(); i++){
+        if(iswhitepiece(board.board, board.legal_target_squares[i]) && difference(board, board.legal_starting_squares[i], board.legal_target_squares[i]) < 0){
+            temp = board.legal_starting_squares[i];
+            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
+            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
+            temp = board.legal_target_squares[i];
+            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
+            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
+        }
+    }
+    for(int i = 0; i < board.legal_starting_squares.size(); i++){
+        if(iswhitepiece(board.board, board.legal_target_squares[i]) && difference(board, board.legal_starting_squares[i], board.legal_target_squares[i]) == 0){
+            temp = board.legal_starting_squares[i];
+            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
+            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
+            temp = board.legal_target_squares[i];
+            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
+            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
+        }
+    }
+    
+    for(int i = 0; i < board.legal_starting_squares.size(); i++){
+        if(iswhitepiece(board.board, board.legal_target_squares[i]) && difference(board, board.legal_starting_squares[i], board.legal_target_squares[i]) > 0){
+            temp = board.legal_starting_squares[i];
+            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
+            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
+            temp = board.legal_target_squares[i];
+            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
+            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
+        }
+    }
+    for(int i = 0; i < board.legal_starting_squares.size(); i++){
+        // CHANGE 6 (speed): BEFORE: if(board.move == index_to_square(board.legal_starting_squares[i]) + index_to_square(board.legal_target_squares[i])){
+        // NOW: the squares are compared as numbers, no strings are built for every move.
+        if(board.legal_starting_squares[i] == bestFrom && board.legal_target_squares[i] == bestTo){
+            temp = board.legal_starting_squares[i];
+            board.legal_starting_squares.erase(board.legal_starting_squares.begin() + i);
+            board.legal_starting_squares.insert(board.legal_starting_squares.begin(), temp);
+            temp = board.legal_target_squares[i];
+            board.legal_target_squares.erase(board.legal_target_squares.begin() + i);
+            board.legal_target_squares.insert(board.legal_target_squares.begin(), temp);
         }
     }
 }
