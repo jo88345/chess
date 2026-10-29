@@ -3639,6 +3639,7 @@ double evaluation(Board &board){
     const int piece_count = piececounter(board.board);
     for(Knight &knight : board.whiteKnight){
         counter++;
+        knight.value = 3;
         if(knight.square / 8 == 0){
             knight.value += -0.5;
         }
@@ -3710,6 +3711,7 @@ double evaluation(Board &board){
     }
     for(Knight &knight : board.blackKnight){
         counter++;
+        knight.value = 3;
         if(knight.square / 8 == 0){
             knight.value += -0.2;
         }
@@ -3774,6 +3776,7 @@ double evaluation(Board &board){
     }
     for(Bishop &bishop : board.whiteBishop){
         counter++;
+        eval += 3.5;
         if(bishop.square == 58 || bishop.square == 61){
             eval -= 0.2;
         }
@@ -3789,6 +3792,7 @@ double evaluation(Board &board){
     }
     for(Bishop &bishop : board.blackBishop){
         counter++;
+        eval -= 3.5;
         if(bishop.square == 2 || bishop.square == 5){
             eval += 0.2;
         }
@@ -3804,6 +3808,7 @@ double evaluation(Board &board){
     }
     for(Rook &rook : board.whiterook){
         counter++;
+        eval += 5;
         eval += 0.05 * onecounter(rook.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(rook.legal_destinations[i] == '1'){
@@ -3816,6 +3821,7 @@ double evaluation(Board &board){
     }
     for(Rook &rook : board.blackrook){
         counter++;
+        eval -= 5;
         eval -= 0.05 * onecounter(rook.legal_destinations);
         for(int i = 0; i < 64; i++){
             if(rook.legal_destinations[i] == '1'){
@@ -3828,6 +3834,7 @@ double evaluation(Board &board){
     }
     for(Queen &queen : board.whiteQueen){
         counter++;
+        eval += 9;
         // CHANGE 8 (speed): BEFORE: if(piececounter(board.board) < 12){  NOW: uses piece_count (counted once above)
         if(piece_count < 12){
             eval += 0.01 * onecounter(queen.legal_destinations);
@@ -3843,6 +3850,7 @@ double evaluation(Board &board){
     }
     for(Queen &queen : board.blackQueen){
         counter++;
+        eval -= 9;
         // CHANGE 8 (speed): BEFORE: if(piececounter(board.board) < 12){  NOW: uses piece_count (counted once above)
         if(piece_count < 12){
             eval -= 0.01 * onecounter(queen.legal_destinations);
@@ -3858,6 +3866,7 @@ double evaluation(Board &board){
     }
     for(pawn &pawn : board.whitePawns){
         counter++;
+        eval += 1;
         pawn.ispassed = true;
         int file = pawn.square % 8;
         for(int j = pawn.square / 8 - 1; j >= 0; j--){ 
@@ -3882,12 +3891,10 @@ double evaluation(Board &board){
             // CHANGE 8 (speed): BEFORE: eval += 0.5*((8-(pawn.square / 8)) * (8-(pawn.square / 8))) * (1/(piececounter(board.board) + 1));  NOW: uses piece_count (counted once above)
             eval += 0.1*((8-(pawn.square / 8)) * (8-(pawn.square / 8))) * (1.0/(piece_count + 1));
         }
-        if(pawn.is_weak){
-            eval -= 0.2;
-        }
     }
     for(pawn &pawn : board.blackPawns){
         counter++;
+        eval -= 1;
         pawn.ispassed = true;
         int file = pawn.square % 8;
         for(int j = pawn.square / 8 + 1; j < 8; j++){
@@ -3911,9 +3918,6 @@ double evaluation(Board &board){
         if(pawn.ispassed){
             // CHANGE 8 (speed): BEFORE: eval -= 0.5*((pawn.square / 8)*(pawn.square / 8)) * (1/(piececounter(board.board) + 1));  NOW: uses piece_count (counted once above)
             eval -= 0.1*((pawn.square / 8)*(pawn.square / 8)) * (1.0/(piece_count + 1));
-        }
-        if(pawn.is_weak){
-            eval += 0.2;
         }
     }
     // CHANGE 8 (speed): BEFORE: if((piececounter(board.board) > 6 && board.whiteQueen.size() != 0 && board.blackQueen.size() != 0) || (piececounter(board.board) > 10 && board.whiteQueen.size() == 0 && board.blackQueen.size() == 0)){  NOW: uses piece_count (counted once above)
@@ -4982,7 +4986,7 @@ void uciLoop(Board &board){ //aus Claude: https://claude.ai/share/d872890d-f24a-
             board.previous_moves.clear();
         }
         else if(cmd == "go"){
-            int depth = 2;
+            int depth = 4;
             std::string tok;
             while(iss >> tok){
                 if(tok == "depth"){

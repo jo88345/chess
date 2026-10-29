@@ -4992,7 +4992,7 @@ void uciLoop(Board &board){ //aus Claude: https://claude.ai/share/d872890d-f24a-
             board.previous_moves.clear();
         }
         else if(cmd == "go"){
-            int depth = 2;
+            int depth = 4;
             std::string tok;
             while(iss >> tok){
                 if(tok == "depth"){

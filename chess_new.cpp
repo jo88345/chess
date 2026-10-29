@@ -236,7 +236,7 @@ void uciLoop(Board &board);
 
 
 int main(){
-    std::string FEN = "rn1qk2r/pbpp1ppp/1p2pn2/8/1b1PP3/2NB1N2/PPP2PPP/R1BQK2R w KQkq - 6 6"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+    std::string FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
     std::string FEN2;
     std::vector<char> testboard;
@@ -293,7 +293,7 @@ int main(){
     }
     board.hash = hashing(board);
 
-    uciLoop(board);
+    board.printboard(board.board);
     
     /*
 
