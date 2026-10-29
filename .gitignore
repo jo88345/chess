@@ -1,4 +1,5 @@
-.vscode/
-Git/
-unnecessary/
+*.pgn
 *.exe
+*.log
+Git/
+book/
